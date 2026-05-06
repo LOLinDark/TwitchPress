@@ -15,7 +15,7 @@ Add the power of the Twitch API to your WordPress by installing this plugin. Som
 ## Links
 
 *   [Blog](https://twitchpress.wordpress.com)
-*   [GitHub](https://github.com/RyanBayne/TwitchPress)
+*   [GitHub](https://github.com/LOLinDark/TwitchPress)
 *   [Developer's Twitter](https://twitter.com/ryan_r_bayne)
 *   [TwitchPress Twitter](https://twitter.com/twitchpress)
 *   [Author's Twitch](https://www.twitch.tv/lolindark1)
@@ -56,7 +56,7 @@ Here are some of the features currently in development or planned for the near f
 *   **Subscriber-Specific Posts:** Ability to make entire posts available only to subscribers.
 *   **Subscriber Roles & Capabilities:** Assign specific WordPress roles and permissions based on Twitch subscription tiers.
 
-Have a feature request? Feel free to open an issue on [GitHub](https://github.com/RyanBayne/TwitchPress/issues).
+Have a feature request? Feel free to open an issue on [GitHub](https://github.com/LOLinDark/TwitchPress/issues).
 
 ---
 
@@ -137,4 +137,4 @@ Community support is available on the project's [Discord server](https://discord
 
 ## License
 
-This plugin is licensed under the **GPLv3**. See the [LICENSE](https://github.com/RyanBayne/TwitchPress/blob/master/LICENSE) file for more details.
+This plugin is licensed under the **GPLv3**. See the [LICENSE](https://github.com/LOLinDark/TwitchPress/blob/master/LICENSE) file for more details.
