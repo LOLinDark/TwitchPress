@@ -257,7 +257,7 @@ class TwitchPress_Twitch_API {
 
         $endpoint = add_query_arg( 'after', $after, $endpoint );
         $endpoint = add_query_arg( 'before', $before, $endpoint );
-        $endpoint = add_query_arg( 'community_id', $community_id, $endpoint );
+        // community_id removed from Twitch API
 
         // Encorce the limit of the API 
         if( $first > 100 ) { $first = 100; }
@@ -1190,89 +1190,33 @@ class TwitchPress_Twitch_API {
     }
 
     /**
-    * Get Users Follows [from giving ID]
-    * 
-    * Gets information on follow relationships between two Twitch users. 
-    * Information returned is sorted in order, most recent follow first. 
-    * This can return information like “who is lirik following,�?, 
-    * “who is following lirik,�? or “is user X following user Y.�?
-    * 
-    * The response has a JSON payload with a data field containing an array 
-    * of follow relationship elements and a pagination field containing 
-    * information required to query for more follow information.
-    * 
-    * @link https://dev.twitch.tv/docs/api/reference/#get-users-follows
-    * 
-    * @param mixed $after
-    * @param mixed $first Maximum number of objects to return. Maximum: 100. Default: 20.
-    * @param mixed $from_id User ID. The request returns information about users who are being followed by the from_id user.
-    * @param mixed $to_id User ID. The request returns information about users who are following the to_id user.
-    * 
-    * @version 1.0
+    * @deprecated Twitch removed /helix/users/follows in August 2023. Use get_channels_followers() instead.
     */
     public function get_users_follows( $after = null, $first = null, $from_id = null, $to_id = null ) {
-        $endpoint = 'https://api.twitch.tv/helix/users/follows';  
-        
-        if( $after ) { $endpoint = add_query_arg( array( 'after' => $after ), $endpoint ); }
-        if( $first ) { $endpoint = add_query_arg( array( 'first' => $first ), $endpoint ); }
-        if( $from_id ) { $endpoint = add_query_arg( array( 'from_id' => $from_id ), $endpoint ); }
-        if( $to_id ) { $endpoint = add_query_arg( array( 'to_id' => $to_id ), $endpoint ); }
-
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
-
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' ); 
-                             
-        return $this->curl_object->curl_reply_body;        
+        _deprecated_function( __FUNCTION__, '3.19.0', 'TwitchPress_Twitch_API::get_channels_followers()' );
+        if( $to_id ) {
+            return $this->get_channels_followers( (int) $to_id, $after, $first, $from_id );
+        }
+        return false;
     }
                    
     /**
-    * The request returns information about users who are being followed by the from_id user.
-    * 
-    * @link https://dev.twitch.tv/docs/api/reference/#get-users-follows
-    * 
-    * @param mixed $after
-    * @param mixed $first
-    * @param mixed $from_id
-    * 
-    * @version 1.0
+    * @deprecated Twitch removed /helix/users/follows in August 2023. Use get_channels_followers() instead.
     */
     public function get_users_follows_from_id( $after = null, $first = null, $from_id = null ) {
-        $endpoint = 'https://api.twitch.tv/helix/users/follows';  
-        
-        if( $after ) { $endpoint = add_query_arg( array( 'after' => $after ), $endpoint ); }
-        if( $first ) { $endpoint = add_query_arg( array( 'first' => $first ), $endpoint ); }
-        if( $from_id ) { $endpoint = add_query_arg( array( 'from_id' => $from_id ), $endpoint ); }
- 
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
-
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' ); 
-                             
-        return $this->curl_object->curl_reply_body;         
+        _deprecated_function( __FUNCTION__, '3.19.0', 'TwitchPress_Twitch_API::get_channels_followers()' );
+        return false;
     }
             
     /**
-    * The request returns information about users who are following the to_id user.
-    * 
-    * @link https://dev.twitch.tv/docs/api/reference/#get-users-follows
-    * 
-    * @param mixed $after
-    * @param mixed $first
-    * @param mixed $to_id
-    * 
-    * @version 2.0
+    * @deprecated Twitch removed /helix/users/follows in August 2023. Use get_channels_followers() instead.
     */
     public function get_users_follows_to_id( $after = null, $first = null, $to_id = null ) {
-        $endpoint = 'https://api.twitch.tv/helix/users/follows';  
-                                     
-        if( $after ) { $endpoint = add_query_arg( array( 'after' => $after ), $endpoint ); }
-        if( $first ) { $endpoint = add_query_arg( array( 'first' => $first ), $endpoint ); }
-        if( $to_id ) { $endpoint = add_query_arg( array( 'to_id' => $to_id ), $endpoint ); }
-
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
-
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' ); 
-                      
-        return $this->curl_object->curl_reply_body;         
+        _deprecated_function( __FUNCTION__, '3.19.0', 'TwitchPress_Twitch_API::get_channels_followers()' );
+        if( $to_id ) {
+            return $this->get_channels_followers( (int) $to_id, $after, $first, null );
+        }
+        return false;
     }
 
     /**
@@ -1291,7 +1235,7 @@ class TwitchPress_Twitch_API {
     public function get_channels_followers( int $broadcaster_id, int $after = null, int $first = null, int $user_id = null ) {
         $endpoint = 'https://api.twitch.tv/helix/channels/followers';  
                                      
-        if( $after ) { $endpoint = add_query_arg( array( 'broadcaster_id' => $broadcaster_id ), $endpoint ); }
+        $endpoint = add_query_arg( array( 'broadcaster_id' => $broadcaster_id ), $endpoint );
         if( $after ) { $endpoint = add_query_arg( array( 'after' => $after ), $endpoint ); }
         if( $first ) { $endpoint = add_query_arg( array( 'first' => $first ), $endpoint ); }
         if( $user_id ) { $endpoint = add_query_arg( array( 'user_id' => $user_id ), $endpoint ); }

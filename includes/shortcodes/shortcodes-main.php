@@ -182,7 +182,7 @@ function twitchpress_shortcode_embed_everything( $atts ) {
         switch ( $atts['defaultcontent'] ) {
            case 'videos':
 
-                $html = ' DOES THIS WORK
+                $html = '
                 <div id="twitchpress-embed-everything">
                     <iframe
                         src="https://player.twitch.tv/?channel=' . $atts['channel'] . '&parent=' . twitchpress_embed_parent_string() . '&muted=true"
@@ -219,15 +219,6 @@ function twitchpress_shortcode_embed_everything( $atts ) {
              break;
         }
         
-        $html = '
-        <div id="twitchpress-embed-everything">
-            <iframe
-                src="https://player.twitch.tv/?channel=dallas&parent=streamernews.example.com&muted=true"
-                height="720"
-                width="1280"
-                allowfullscreen="true">
-            </iframe>        
-        </div>';        
     }
 
     return apply_filters( 'twitchpress_shortcode_embed_everything', $html );
