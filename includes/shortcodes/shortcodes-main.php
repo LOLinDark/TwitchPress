@@ -162,7 +162,14 @@ function twitchpress_shortcode_embed_everything( $atts ) {
         
     $atts['channel'] = str_replace( '�', '', $atts['channel'] );
     
-    $parameters = json_encode( $atts );
+    $embed_options = array(
+        'channel' => sanitize_text_field( $atts['channel'] ),
+        'height'  => absint( $atts['height'] ),
+        'width'   => sanitize_text_field( $atts['width'] ),
+        'theme'   => in_array( $atts['theme'], array('light','dark'), true ) ? $atts['theme'] : 'dark',
+        'parent'  => array( twitchpress_embed_parent_string() ),
+    );
+    $parameters = wp_json_encode( $embed_options );
     
     if( $atts['defaultcontent'] == false || twitchpress_is_streaming( $atts['channel_id'] ) ) {          
         
@@ -256,7 +263,7 @@ function twitchpress_videos_shortcode( $atts ) {
     }
     
     // Get the stream. 
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
     
     $result = $helix->get_videos( $atts['id'], $atts['user_id'], $atts['game_id'] );
               
@@ -313,7 +320,7 @@ function twitchpress_get_top_games_list_shortcode( $atts ) {
         return $cache;
     }                 
     // Get the stream. 
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
     
     $result = $helix->get_top_games( null, null, $atts['total'] );
     
@@ -369,7 +376,7 @@ function twitchpress_channel_status_line_helix( $atts ) {
     
     // Establish an ID if we only have a channel name...  
     if( !$atts['channel_id'] && $atts['channel_name'] ) {              
-        $helix = new TWITCHPRESS_Twitch_API();
+        $helix = new TwitchPress_Twitch_API();
         $result = $helix->get_channel_id_by_name( $atts['channel_name'] );
         
         if( isset( $result->data[0]->id ) ) {
@@ -390,7 +397,7 @@ function twitchpress_channel_status_line_helix( $atts ) {
 
     // Get the stream. 
     if( !isset( $helix ) ){ 
-        $helix = new TWITCHPRESS_Twitch_API(); 
+        $helix = new TwitchPress_Twitch_API(); 
     }
          
     $result = $helix->get_stream_by_userid( $atts['channel_id'] );     
@@ -433,20 +440,21 @@ function twitchpress_channel_status_shortcode_helix( $atts ) {
             'offline'      => __( 'Channel Offline', 'twitchpress' )
     ), $atts, 'twitchpress_channel_status' );
     
+    $channel_id = isset($atts['channel_id']) ? $atts['channel_id'] : null;
+    
     // If no channel ID or name is giving...
-    if( !$atts['channel_id'] && !$atts['channel_name'] ) {
+    if( !$channel_id && !$atts['channel_name'] ) {
         return __( 'Channel status shortcode has not been setup!', 'twitchpress' );      
     } 
     
     // Establish an ID if we only have a channel name...  
-    if( !$atts['channel_id'] && $atts['channel_name'] ) {              
-        $helix = new TWITCHPRESS_Twitch_API();
+    if( !$channel_id && $atts['channel_name'] ) {              
+        $helix = new TwitchPress_Twitch_API();
         $result = $helix->get_channel_id_by_name( $atts['channel_name'] );
-        if( isset( $result->data[0]->id ) ) {
-            $channel_id = $result->data[0]->id;
+        if( $result ) {
+            $channel_id = $result;
         } else {
-            $channel_id = null;
-            $html_output = sprintf( __( 'Failed to retrieve channel ID %s', 'twitchpress' ), esc_html( $atts['channel_name'] ) );
+            return sprintf( __( 'Failed to retrieve channel ID %s', 'twitchpress' ), esc_html( $atts['channel_name'] ) );
         }                   
     } 
     
@@ -459,7 +467,7 @@ function twitchpress_channel_status_shortcode_helix( $atts ) {
     }                  
 
     // Get the stream. 
-    if( !$helix ){ $helix = new TWITCHPRESS_Twitch_API(); }
+    if( !isset( $helix ) ){ $helix = new TwitchPress_Twitch_API(); }
          
     $result = $helix->get_stream_by_userid( $channel_id );     
 
@@ -501,11 +509,11 @@ function twitchpress_channel_status_box_shortcode_helix( $atts ) {
     {
         return 'Shortcode has not been setup properly!';      
     }   
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
 
     // Establish an ID if we only have a channel name...  
     if( !$atts['channel_id'] && $atts['channel_name'] ) {              
-        $helix = new TWITCHPRESS_Twitch_API();
+        $helix = new TwitchPress_Twitch_API();
         $result = $helix->get_user_without_email_by_login_name( $atts['channel_name'] );
         if( isset( $result->data[0]->id ) ) {
             $channel_id = $result->data[0]->id;
@@ -526,7 +534,7 @@ function twitchpress_channel_status_box_shortcode_helix( $atts ) {
     }                  
                                 
     // Get the stream. 
-    if( !$helix ){ $helix = new TWITCHPRESS_Twitch_API(); }
+    if( !$helix ){ $helix = new TwitchPress_Twitch_API(); }
          
     $result = $helix->get_stream_by_userid( $channel_id );     
                        
@@ -678,7 +686,7 @@ function shortcode_visitor_api_services_buttons( $atts ) {
                           
     return $html_output;    
 }
-add_shortcode( 'twitchpress_visitor_api_services_buttons', 'twitchpress_shortcode_visitor_api_services_buttons' );
+add_shortcode( 'twitchpress_visitor_api_services_buttons', 'shortcode_visitor_api_services_buttons' );
 
 /**
 * Shortcode outputs the total viewers for a giving stream
@@ -700,7 +708,7 @@ function twitchpress_streams_totalviewers_shortcode_helix( $atts ) {
     {
         return 'Shortcode has not been setup properly!';      
     }   
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
 
     // Establish an ID if we only have a channel name...  
     if( !$atts['channel_id'] && $atts['channel_name'] ) {              
@@ -760,7 +768,7 @@ function twitchpress_stream_data_shortcode_helix( $atts ) {
     {
         return 'Shortcode has not been setup properly!';      
     }   
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
 
     // Establish an ID if we only have a channel name...  
     if( !$atts['channel_id'] && $atts['channel_name'] ) {              
@@ -832,7 +840,7 @@ function twitchpress_get_bits_leaderboard_shortcode_helix( $atts ) {
     } 
     
     // Call our good friend Twitch...  
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
 
     // Establish an ID if we only have a channel name (not the recommended approach but handy)...  
     if( !$atts['channel_id'] && $atts['channel_name'] ) {              
@@ -879,7 +887,7 @@ add_shortcode( 'twitchpress_shortcode_get_bits_leaderboard', 'twitchpress_get_bi
 */
 function twitchpress_shortcode_get_bits_leaderboard( $atts ) {
  
-    $helix = new TWITCHPRESS_Twitch_API();
+    $helix = new TwitchPress_Twitch_API();
     
     $result = $helix->get_bits_leaderboard( $atts['count'], $atts['period'], $atts['started_at'], $atts['channel_id'] );
     
@@ -902,7 +910,7 @@ function twitchpress_shortcode_get_bits_leaderboard( $atts ) {
 */
 function twitchpress_shortcode_get_clips( $atts ) {
     
-    $helix = new TWITCHPRESS_Twitch_API();    
+    $helix = new TwitchPress_Twitch_API();    
     
     $result = $helix->get_clips( $atts['broadcaster_id'], $atts['game_id'], $atts['clip_id'] );
 
@@ -922,7 +930,7 @@ function twitchpress_shortcode_get_clips( $atts ) {
 * @version 1.0
 */
 function twitchpress_shortcode_get_game( $atts ) {
-    $helix = new TWITCHPRESS_Twitch_API();    
+    $helix = new TwitchPress_Twitch_API();
     
     $result = $helix->get_games( $atts['game_id'], $atts['game_name'] );
 

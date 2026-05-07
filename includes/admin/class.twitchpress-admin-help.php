@@ -439,7 +439,7 @@ class TwitchPress_Admin_Help {
         $current_user_id = get_current_user_id();
         $output = '';
 
-        $helix = new TWITCHPRESS_Twitch_API();
+        $helix = new TwitchPress_Twitch_API();
         $twitch_user = $helix->get_user_without_email_by_login_name( twitchpress_get_main_channels_name() );
 
         $output .= '<h2>' . __( 'Main Channel Credentials', 'twitchpress' ) . '</h2>';

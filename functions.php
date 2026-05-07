@@ -2772,7 +2772,7 @@ function twitchpress_update_main_channels_team_id( $twitch_team_id ) {
 * @version 1.0
 */
 function twitchpress_is_streaming( $channel_id ) {
-    $twitch_api = new TWITCHPRESS_Twitch_API();
+    $twitch_api = new TwitchPress_Twitch_API();
     $result = $twitch_api->get_stream_by_userid( $channel_id );     
     if( !$result || $result->type !== 'live' ) {
         return false;    

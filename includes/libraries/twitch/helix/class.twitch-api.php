@@ -1061,7 +1061,7 @@ class TwitchPress_Twitch_API {
         if( $after ) { $endpoint = add_query_arg( array( 'after' => $after ), $endpoint ); }
         if( $first ) { $endpoint = add_query_arg( array( 'first' => $first ), $endpoint ); }
         
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, 'GET', $endpoint, 'helix', true, 'mainchannel' ); 
+        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET', 'helix', true, 'mainchannel' ); 
         $this->call(); 
 
         return $this->curl_object->curl_reply_body;           
@@ -1281,40 +1281,6 @@ class TwitchPress_Twitch_API {
         return $this->curl_object->curl_reply_body;
     }
     
-    public function webhook_new( $headers, $callback, $mode, $topic, $lease_seconds = null, $secret = null ) {
-        
-        $call_authentication = 'none';
-
-        $endpoint = 'https://api.twitch.tv/helix/webhooks/hub';     
-        
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, 'POST', $endpoint );    
-
-        $this->curl_object->add_headers( array(
-            'hub.callback'      => $callback,
-            'hub.mode'          => $mode,
-            'hub.topic'         => $topic,
-            'hub.lease_seconds' => $lease_seconds,
-            'hub.secret'        => $secret,
-        ) );
-        
-        $this->curl_object->set_curl_body( $headers );
-                       
-        $this->call();
-                     
-        return $this->curl_object->curl_reply_body; 
-    } 
-    
-    public function webhook_new_user_follows( $first, $callback, $mode, $topic, $from_id = null, $to_id = null, $lease_seconds = null, $secret = null ) {
-        
-        $headers = array(
-            'first'   => $first,
-            'from_id' => $from_id,
-            'to_id'   => $to_id 
-        );
-        
-        return $this->webhook_new( $headers, $callback, $mode, $topic, $lease_seconds = null, $secret = null );    
-    } 
-
     /**
     * Get a team and team members...
     * 
