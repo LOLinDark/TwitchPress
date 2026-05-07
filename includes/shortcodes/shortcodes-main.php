@@ -1,10 +1,14 @@
-// Ensure TwitchPress_Twitch_API is available
+
+// Enforce WordPress context
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+// Ensure all used TwitchPress classes are available
 if ( ! class_exists( 'TwitchPress_Twitch_API' ) ) {
     require_once dirname( __FILE__, 3 ) . '/libraries/twitch/helix/class.twitch-api.php';
 }
-<?php  
-// Ensure TwitchPress_Twitch_API is available for all shortcodes
-require_once dirname(__FILE__) . '/../libraries/twitch/helix/class.twitch-api.php';
+if ( ! class_exists( 'TwitchPress_Streamlabs_API' ) ) {
+    require_once dirname( __FILE__, 3 ) . '/libraries/allapi/streamlabs/class.api-streamlabs.php';
+}
 /**
  * TwitchPress - Include shortcode files here (added April 2018)
  *
@@ -678,7 +682,7 @@ function shortcode_visitor_api_services_buttons( $atts ) {
     // Streamlabs 
     if( class_exists( 'TWITCHPRESS_Streamlabs_API' ) )
     {
-        $streamlabs_api = new TWITCHPRESS_Streamlabs_API();
+        $streamlabs_api = new TwitchPress_Streamlabs_API();
         
         $state = array( 'redirectto' => $permalink,
                         'userrole'   => 'visitor',

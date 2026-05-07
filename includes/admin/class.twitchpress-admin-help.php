@@ -367,8 +367,7 @@ class TwitchPress_Admin_Help {
         $current_user_id = get_current_user_id();
                                           
         $output = '<h2>' . __( 'Application Credentials', 'twitchpress' ) . '</h2>';
-        $output .= '<p>Old App ID Method: ' . twitchpress_get_main_client_id() . '</p>';
-        $output .= '<p>New App ID Method: ' . twitchpress_get_app_id() . '</p>';
+        $output .= '<p>App ID: ' . esc_html( twitchpress_get_app_id() ) . '</p>';
         $output .= '<p>App Redirect: ' . twitchpress_get_app_redirect() . '</p>';
 
         // Test Get Application Token

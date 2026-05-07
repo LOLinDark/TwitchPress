@@ -28,12 +28,8 @@ function twitchpress_get_main_client_code() {
     return twitchpress_get_main_channel_code();
 }
 
-/**
-* @deprecated use twitchpress_get_app_id()
-*/
-function twitchpress_get_main_client_id() {
-    return get_option( 'twitchpress_main_client_id' );
-}  
+
+// Removed deprecated twitchpress_get_main_client_id(). Use twitchpress_get_app_id() instead.
 
 /**
 * Stores the main application token and main application scopes
