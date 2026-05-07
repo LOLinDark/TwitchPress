@@ -215,7 +215,7 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                 return;
             }
                         
-            $state_code = $_GET['state'];
+            $state_code = sanitize_text_field( $_GET['state'] );
 
             // We require the local state value stored in transient. 
             if( !$this->transient_state = twitchpress_get_transient_oauth_state( $state_code ) ) { 
@@ -245,8 +245,8 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
             
             // Prepare arguments for add_query_var() when redirecting. Cannot assume they are all set.
             $response_arguments = array( 'state' => $state_code );
-            if( isset( $_GET['code'] ) ) { $response_arguments['code'] = $_GET['code']; }            
-            if( isset( $_GET['scope'] ) ) { $response_arguments['scope'] = $_GET['scope']; }                     
+            if( isset( $_GET['code'] ) ) { $response_arguments['code'] = $sanitized_code; }            
+            if( isset( $_GET['scope'] ) ) { $response_arguments['scope'] = sanitize_text_field( $_GET['scope'] ); }                     
                       
             // Display public notice that includes Twitch TV message...
             if( isset( $_GET['error'] ) ) { 
@@ -254,7 +254,7 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                     array( 'key' => 0, 
                            'source' => 'login', 
                            'display_notice' => true,
-                           'placeholder_values' => array( $_GET['error'] ) 
+                           'placeholder_values' => array( sanitize_text_field( $_GET['error'] ) ) 
                     ) 
                 );
                 return;             
@@ -283,14 +283,16 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
     
             $helix = new TWITCHPRESS_Twitch_API();
             
+            $sanitized_code = $sanitized_code;
+            
             // Ensure code is ready...
-            if( !twitchpress_validate_code( $_GET['code'] ) ) {   
+            if( !twitchpress_validate_code( $sanitized_code ) ) {   
                 $this->return_to_login_page( array( 'key' => 4, 'source' => 'login', 'display_notice' => true ) );                           
                 return;                   
             }
                                    
             // Generate a token, it is stored as user meta further down.
-            $token_array = $helix->request_user_access_token( $_GET['code'], __FUNCTION__ );   
+            $token_array = $helix->request_user_access_token( $sanitized_code, __FUNCTION__ );   
                                              
             // Confirm token was returned...  
             if( !twitchpress_was_valid_token_returned_from_helix( $token_array ) ) {                           
@@ -360,7 +362,7 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                     update_user_meta( $wp_user_id, 'twitchpress_twitch_bio', $twitch_user['bio'] );
                     update_user_meta( $wp_user_id, 'twitchpress_twitch_display_name', $twitch_user['display_name'] );
                     update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() );
-                    update_user_meta( $wp_user_id, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
+                    update_user_meta( $wp_user_id, 'twitchpress_code', $sanitized_code );
                     update_user_meta( $wp_user_id, 'twitchpress_token', $token_array->access_token );
                     update_user_meta( $wp_user_id, 'twitchpress_token_refresh', $token_array->refresh_token );
                     update_user_meta( $wp_user_id, 'twitchpress_twitch_expires_in', $token_array->expires_in );
@@ -371,7 +373,7 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                          
                     // Update main channel if main channel owner is logging in...
                     if( 1 == $wp_user_id ) {
-                        twitchpress_update_main_channels_code( sanitize_text_field( $_GET['code'] ) ); 
+                        twitchpress_update_main_channels_code( $sanitized_code ); 
                         twitchpress_update_main_channels_token( $token_array->access_token ); 
                         twitchpress_update_main_channels_refresh_token( $token_array->refresh_token );
                         twitchpress_update_main_channels_scopes( $token_array->scope ); 
@@ -400,7 +402,7 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                 update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_bio', $twitch_user['bio'] );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_display_name', $twitch_user['display_name'] );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_auth_time', time() );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
+                update_user_meta( $wp_user->data->ID, 'twitchpress_code', $sanitized_code );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_token', $token_array->access_token );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_token_refresh', $token_array->refresh_token );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_expires_in', $token_array->expires_in );
@@ -471,7 +473,7 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
             update_user_meta( $wp_user_id, 'twitchpress_twitch_bio', $twitch_user['bio'] );
             update_user_meta( $wp_user_id, 'twitchpress_twitch_display_name', $twitch_user['display_name'] );
             update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() );
-            update_user_meta( $wp_user_id, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
+            update_user_meta( $wp_user_id, 'twitchpress_code', $sanitized_code );
             update_user_meta( $wp_user_id, 'twitchpress_token', $token_array->access_token );
             update_user_meta( $wp_user_id, 'twitchpress_token_refresh', $token_array->refresh_token );
             update_user_meta( $wp_user_id, 'twitchpress_twitch_expires_in', $token_array->expires_in );

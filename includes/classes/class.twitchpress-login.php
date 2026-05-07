@@ -130,7 +130,7 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
                 return;
             }
             
-            $state_code = $_GET['state'];
+            $state_code = sanitize_text_field( $_GET['state'] );
                         
             // We require the local state value stored in transient. 
             if( !$transient_state = twitchpress_get_transient_oauth_state( $state_code ) ) { 
@@ -154,8 +154,8 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
             
             // Prepare arguments for add_query_var() when redirecting. Cannot assume they are all set.
             $response_arguments = array( 'state' => $state_code );
-            if( isset( $_GET['code'] ) ) { $response_arguments['code'] = $_GET['code']; }            
-            if( isset( $_GET['scope'] ) ) { $response_arguments['scope'] = $_GET['scope']; }                     
+            if( isset( $_GET['code'] ) ) { $response_arguments['code'] = sanitize_text_field( $_GET['code'] ); }            
+            if( isset( $_GET['scope'] ) ) { $response_arguments['scope'] = sanitize_text_field( $_GET['scope'] ); }                     
                       
             // If the $login_type = default we can do a view check and redirect early. 
             if( $transient_state['view'] == 'default' && !twitchpress_is_backend_login() ) {                
@@ -195,8 +195,10 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
                 
             $helix = new TWITCHPRESS_Twitch_API();
             
+            $sanitized_code = sanitize_text_field( $_GET['code'] );
+            
             // Ensure code is ready...
-            if( !twitchpress_validate_code( $_GET['code'] ) ) 
+            if( !twitchpress_validate_code( $sanitized_code ) ) 
             {   
                 $this->loginerror( __( 'Invalid Twitch Code'), 
                                    __( 'Your request to login via Twitch has failed because the code return by Twitch appears invalid. Please try again or report the issue.', 'twitchpress-login' ),
@@ -205,7 +207,7 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
             }
              
             // Generate a token, it is stored as user meta further down.
-            $token_array = $helix->request_user_access_token( $_GET['code'], __FUNCTION__ );    
+            $token_array = $helix->request_user_access_token( $sanitized_code, __FUNCTION__ );    
                                              
             // Confirm token was returned...  
             if( !twitchpress_was_valid_token_returned_from_helix( $token_array ) ) {   
@@ -303,7 +305,7 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
                     update_user_meta( $wp_user_id, 'twitchpress_twitch_email_verified', true );
                     update_user_meta( $wp_user_id, 'twitchpress_twitch_name', $twitch_user->login );
                     update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() );
-                    update_user_meta( $wp_user_id, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
+                    update_user_meta( $wp_user_id, 'twitchpress_code', $sanitized_code );
                     update_user_meta( $wp_user_id, 'twitchpress_token', $token_array->access_token );
                     update_user_meta( $wp_user_id, 'twitchpress_token_refresh', $token_array->refresh_token );
                     update_user_meta( $wp_user_id, 'twitchpress_twitch_expires_in', $token_array->expires_in );
@@ -311,7 +313,7 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
                                                                   
                     // Update main channel if main channel owner is logging in...
                     if( 1 == $wp_user_id ) {
-                        twitchpress_update_main_channels_code( sanitize_text_field( $_GET['code'] ) ); 
+                        twitchpress_update_main_channels_code( $sanitized_code ); 
                         twitchpress_update_main_channels_token( $token_array->access_token ); 
                         twitchpress_update_main_channels_refresh_token( $token_array->refresh_token );
                         twitchpress_update_main_channels_scopes( $token_array->scope ); 
@@ -336,7 +338,7 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
                 update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_email_verified', true );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_name', $twitch_user->login );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_auth_time', time() );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
+                update_user_meta( $wp_user->data->ID, 'twitchpress_code', $sanitized_code );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_token', $token_array->access_token );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_token_refresh', $token_array->refresh_token );
                 update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_expires_in', $token_array->expires_in );
@@ -409,7 +411,7 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
             update_user_meta( $wp_user_id, 'twitchpress_twitch_email_verified', true );
             update_user_meta( $wp_user_id, 'twitchpress_twitch_name', $twitch_user->login );  
             update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() );
-            update_user_meta( $wp_user_id, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
+            update_user_meta( $wp_user_id, 'twitchpress_code', $sanitized_code );
             update_user_meta( $wp_user_id, 'twitchpress_token', $token_array->access_token );
             update_user_meta( $wp_user_id, 'twitchpress_token_refresh', $token_array->refresh_token );
             update_user_meta( $wp_user_id, 'twitchpress_twitch_expires_in', $token_array->expires_in );
@@ -561,10 +563,10 @@ if ( ! class_exists( 'TwitchPress_Login' ) ) :
 
             $message = '<strong>' . __( 'Twitch Refused Request: ', 'twitchpress-login') . '</strong>';
             
-            $message .= sprintf( __( 'the %s error was returned.'), $_GET['error'] );            
+            $message .= sprintf( __( 'the %s error was returned.'), esc_html( sanitize_text_field( $_GET['error'] ) ) );            
             
             if( isset( $_GET['description'] ) ) {
-                $message .= ' ' . $_GET['description'] . '.';        
+                $message .= ' ' . esc_html( sanitize_text_field( $_GET['description'] ) ) . '.';        
             }
             
             $login_notices = new TwitchPress_Custom_Login_Messages();
