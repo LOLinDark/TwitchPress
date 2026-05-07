@@ -30,8 +30,11 @@ if ( ! class_exists( 'WordPressTwitchPress' ) ) :
     // Create a request key for tracing/debugging...
     if( !defined( 'TWITCHPRESS_REQUEST_KEY' ) ) { define( 'TWITCHPRESS_REQUEST_KEY', $_SERVER["REQUEST_TIME_FLOAT"] . rand( 10000, 99999 ) ); }
                                         
-    // Load object registry class to handle class objects without using $global. 
-    include_once( plugin_basename( 'includes/classes/class.twitchpress-object-registry.php' ) );
+    // Load Composer autoloader for namespaced classes
+    if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+        require_once __DIR__ . '/vendor/autoload.php';
+    }
+    // Example: use TwitchPress\Core\ObjectRegistry;
                      
     // Load core functions with importance on making them available to third-party.                                            
     include_once( TWITCHPRESS_PLUGIN_DIR_PATH . 'functions.php' );

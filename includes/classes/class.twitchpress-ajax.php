@@ -70,6 +70,17 @@ class TwitchPress_AJAX {
         }
 
         if ( $action = $wp_query->get( 'twitchpress-ajax' ) ) {
+            // Nonce check: require a valid nonce for all AJAX actions
+            if ( empty( $_REQUEST['_wpnonce'] ) || ! wp_verify_nonce( $_REQUEST['_wpnonce'], 'twitchpress_ajax_' . $action ) ) {
+                wp_die( __( 'Security check failed (nonce).', 'twitchpress' ) );
+            }
+            // Optional: Capability check (customize per action as needed)
+            if ( has_filter( 'twitchpress_ajax_capability_' . $action ) ) {
+                $required_cap = apply_filters( 'twitchpress_ajax_capability_' . $action, 'manage_options' );
+                if ( ! current_user_can( $required_cap ) ) {
+                    wp_die( __( 'Insufficient permissions.', 'twitchpress' ) );
+                }
+            }
             self::twitchpress_ajax_headers();
             do_action( 'twitchpress_ajax_' . sanitize_text_field( $action ) );
             die();

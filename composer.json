@@ -1,0 +1,12 @@
+{
+    "name": "lolidark/twitchpress",
+    "description": "Unofficial Twitch.tv integration for WordPress.",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
+    "autoload": {
+        "psr-4": {
+            "TwitchPress\\Core\\": "src/Core/"
+        }
+    },
+    "require": {}
+}

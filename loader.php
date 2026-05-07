@@ -1,3 +1,9 @@
+// Add a secure Content-Security-Policy header for all plugin output
+add_action( 'send_headers', function() {
+    if ( ! headers_sent() ) {
+        header( "Content-Security-Policy: default-src 'self'; img-src 'self' https: data:; script-src 'self' 'unsafe-inline' https://static.twitchcdn.net; style-src 'self' 'unsafe-inline' https:; frame-src https://player.twitch.tv https://clips.twitch.tv;" );
+    }
+}, 1 );
 <?php
 /**
  * TwitchPress main class - includes, debugging, error output, object registry, constants.

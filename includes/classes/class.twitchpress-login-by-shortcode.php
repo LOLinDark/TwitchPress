@@ -326,10 +326,16 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
             $twitch_user['display_name']      = sanitize_user( $twitch_reply->display_name ); // "dallas",
             $twitch_user['email']             = sanitize_email( $twitch_reply->email ); // "email-address@provider.com",
             $twitch_user['logo']              = esc_url_raw( $twitch_reply->profile_image_url ) ; // "https://static-cdn.jtvnw.net/jtv_user_pictures/dallas-profile_image-1a2c906ee2c35f12-300x300.png",
-                                               
+
+            // Nonce verification for CSRF protection
+            if ( empty( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'], 'twitchpress_login' ) ) {
+                $this->return_to_login_page( array( 'key' => 99, 'source' => 'login', 'display_notice' => true, 'error' => 'Invalid or missing nonce.' ) );
+                return;
+            }
+
             // We can log the user into WordPress if they have an existing account.
             $wp_user = get_user_by( 'email', $twitch_user['email'] );
-            
+
             // If visitor (as email address) does not exist in WP database by email check for Twitch history using user/channel "_id".
             if( $wp_user === false ) 
             {     
@@ -343,7 +349,6 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                 $get_users_results = get_users( $args ); 
                 
                 // We will not continue if there are more than one WP account with the same Twitch ID.     
-                // This will be a very rare situation I think so we won't get too advanced on how to deal with it, yet! 
                 if( isset( $get_users_results[1] ) ) 
                 {       
                     $this->return_to_login_page( array( 'key' => 10, 'source' => 'login', 'display_notice' => true ) );                           
@@ -352,23 +357,21 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                 elseif( isset( $get_users_results[0] ) ) 
                 {   
                     $wp_user_id = $get_users_results[0]->ID;
-                             
+                    $meta_errors = array();
                     // A single user has been found with the Twitch "_id" associated with it.
                     // We will further marry the WP account to Twitch account.
-                    update_user_meta( $wp_user_id, 'twitchpress_twitch_id', $twitch_user['_id'] );
-                    update_user_meta( $wp_user_id, 'twitchpress_twitch_email', $twitch_user['email'] );
-                    update_user_meta( $wp_user_id, 'twitchpress_twitch_bio', $twitch_user['bio'] );
-                    update_user_meta( $wp_user_id, 'twitchpress_twitch_display_name', $twitch_user['display_name'] );
-                    update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() );
-                    update_user_meta( $wp_user_id, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
-                    update_user_meta( $wp_user_id, 'twitchpress_token', $token_array->access_token );
-                    update_user_meta( $wp_user_id, 'twitchpress_token_refresh', $token_array->refresh_token );
-                    update_user_meta( $wp_user_id, 'twitchpress_twitch_expires_in', $token_array->expires_in );
-                    update_user_meta( $wp_user_id, 'twitchpress_token_scope', $token_array->scope );
-                    
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_twitch_id', $twitch_user['_id'] ) ) $meta_errors[] = 'twitch_id';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_twitch_email', $twitch_user['email'] ) ) $meta_errors[] = 'twitch_email';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_twitch_bio', $twitch_user['bio'] ) ) $meta_errors[] = 'twitch_bio';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_twitch_display_name', $twitch_user['display_name'] ) ) $meta_errors[] = 'twitch_display_name';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() ) ) $meta_errors[] = 'auth_time';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) ) ) $meta_errors[] = 'code';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_token', $token_array->access_token ) ) $meta_errors[] = 'token';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_token_refresh', $token_array->refresh_token ) ) $meta_errors[] = 'token_refresh';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_twitch_expires_in', $token_array->expires_in ) ) $meta_errors[] = 'expires_in';
+                    if ( false === update_user_meta( $wp_user_id, 'twitchpress_token_scope', $token_array->scope ) ) $meta_errors[] = 'token_scope';
                     // Twitch.tv logo replaces gravatar...
                     twitchpress_update_user_meta_avatar( $get_users_results[0]->ID, $twitch_user['logo'] );
-                         
                     // Update main channel if main channel owner is logging in...
                     if( 1 == $wp_user_id ) {
                         twitchpress_update_main_channels_code( sanitize_text_field( $_GET['code'] ) ); 
@@ -378,45 +381,45 @@ if ( ! class_exists( 'TwitchPress_Login_by_Shortcode' ) ) :
                         twitchpress_update_main_channels_expires_in( $token_array->expires_in );                       
                         twitchpress_update_main_channels_scope( $token_array->scope );                       
                     }
-                                              
+                    if ( !empty( $meta_errors ) ) {
+                        error_log( 'TwitchPress meta update errors for user ' . $wp_user_id . ': ' . implode( ',', $meta_errors ) );
+                    }
                     // Log the user in.
                     $authenticated = self::authenticate_login_by_twitch( $get_users_results[0]->ID, $twitch_user['login'], $state_code  );
-
                     // login_success() will perform a redirect on success...
                     if( $authenticated )
                     {
                         $this->login_success();    
                     }
-                                      
                     return;
                 } 
             } 
             else 
             {      
+                $meta_errors = array();
                 // A single user has been found matching the Twitch email address.
                 // We will further marry the WP account to Twitch account.
-                update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_id', $twitch_user['_id'] );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_email', $twitch_user['email'] );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_bio', $twitch_user['bio'] );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_display_name', $twitch_user['display_name'] );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_auth_time', time() );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_token', $token_array->access_token );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_token_refresh', $token_array->refresh_token );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_expires_in', $token_array->expires_in );
-                update_user_meta( $wp_user->data->ID, 'twitchpress_token_scope', $token_array->scope );
-                
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_id', $twitch_user['_id'] ) ) $meta_errors[] = 'twitch_id';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_email', $twitch_user['email'] ) ) $meta_errors[] = 'twitch_email';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_bio', $twitch_user['bio'] ) ) $meta_errors[] = 'twitch_bio';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_display_name', $twitch_user['display_name'] ) ) $meta_errors[] = 'twitch_display_name';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_auth_time', time() ) ) $meta_errors[] = 'auth_time';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_code', sanitize_text_field( $_GET['code'] ) ) ) $meta_errors[] = 'code';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_token', $token_array->access_token ) ) $meta_errors[] = 'token';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_token_refresh', $token_array->refresh_token ) ) $meta_errors[] = 'token_refresh';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_twitch_expires_in', $token_array->expires_in ) ) $meta_errors[] = 'expires_in';
+                if ( false === update_user_meta( $wp_user->data->ID, 'twitchpress_token_scope', $token_array->scope ) ) $meta_errors[] = 'token_scope';
                 // Twitch.tv logo replaces gravatar...
                 twitchpress_update_user_meta_avatar( $wp_user->data->ID, $twitch_user['logo'] );
-
+                if ( !empty( $meta_errors ) ) {
+                    error_log( 'TwitchPress meta update errors for user ' . $wp_user->data->ID . ': ' . implode( ',', $meta_errors ) );
+                }
                 $authenticated = self::authenticate_login_by_twitch( $wp_user->data->ID, $wp_user->data->user_login, $state_code );
- 
                 // login_success() will perform a redirect on success...
                 if( $authenticated )
                 {
                     $this->login_success();    
                 }
-                
                 return;
             }
            
