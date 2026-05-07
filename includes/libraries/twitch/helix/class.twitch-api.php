@@ -61,63 +61,48 @@ class TwitchPress_Twitch_API {
     * 
     * @var mixed
     */
-    public $twitch_scopes = array( 
-            'channel_check_subscription',
-            'channel_commercial',
-            'channel_editor',
-            'channel_read',
-            'channel_stream',
-            'channel_subscriptions',
-            'collections_edit',
-            'communities_edit',
-            'communities_moderate',
-            'user_blocks_edit',
-            'user_blocks_read',
-            'user_follows_edit',
-            'user_read',
-            'user_subscriptions',
-            'analytics:read:extensions', // View analytics data for your extensions.
-            'analytics:read:games',      // View analytics data for your games.
-            'bits:read',                 // View Bits information for your channel.
-            'clips:edit',                // Manage a clip object.
-            'channel:edit:commercial',   // Run commercials on a channel.
-            'channel:manage:extensions', // Manage a channel�s Extension configuration, including activating Extensions.
-            'user:edit',                 // Manage a user object.
-            'user:edit:broadcast',       // Edit your channels broadcast configuration, including extension configuration. (This scope implies user:read:broadcast capability.)
-            'user:read:broadcast',       // View your broadcasting configuration, including extension configurations.
-            'channel:manage:broadcast',  // Manage a channel�s broadcast configuration, including updating channel configuration and managing stream markers and stream tags.
-            'user:read:email',           // Read authorized users email address. 
-            'user:read:subscriptions',   // 
-            'channel:read:subscriptions',// Get all of a broadcaster�s subscriptions.
-            'chat:edit',                 
-            'chat:read', 
-            'channel:manage:polls',      // Manage a channel�s polls.   
-            'channel:manage:predictions',// Manage a channel�s Channel Points Predictions 
-            'channel:manage:redemptions', 
-            'channel:manage:schedule',   // Manage a channel�s stream schedule.
-            'channel:manage:videos',     // Manage a channel�s videos, including deleting videos.
-            'channel:read:editors',      // View a list of users with the editor role for a channel.
-            'channel:read:goals',        // View Creator Goals for a channel.
-            'channel:read:hype_train',   // View Hype Train information for a channel.
-            'channel:read:polls',        // View a channels polls
-            'channel:read:predictions',  // View a channel�s Channel Points Predictions.
-            'channel:read:redemptions',  // View Channel Points custom rewards and their redemptions on a channel.
-            'channel:read:stream_key',   // View an authorized user�s stream key.
-            'moderation:read',           // View a channel�s moderation data including Moderators, Bans, Timeouts, and Automod settings.
-            'moderator:manage:banned_users', // Ban and unban users.
-            'moderator:read:blocked_terms', // View a broadcaster�s list of blocked terms.
-            'moderator:manage:blocked_terms', // Manage a broadcaster�s list of blocked terms.
-            'moderator:manage:automod',   // Manage messages held for review by AutoMod in channels where you are a moderator.
-            'moderator:read:automod_settings', // View a broadcaster�s AutoMod settings.
-            'moderator:manage:automod_settings', // Manage a broadcaster�s AutoMod settings.
-            'moderator:read:chat_settings', // View a broadcaster�s chat room settings.
-            'moderator:manage:chat_settings', // Manage a broadcaster�s chat room settings.
-            'user:manage:blocked_users', // Manage the block list of a user.
-            'user:read:blocked_users', // View the block list of a user.
-            'user:read:broadcast', // View a user�s broadcasting configuration, including Extension configurations. 
-            'user:read:follows', // View the list of channels a user follows.
-            'whispers:read', // View your whisper messages.
-            'whispers:edit', // Send whisper messages.
+        public $twitch_scopes = array(
+            'analytics:read:extensions',
+            'analytics:read:games',
+            'bits:read',
+            'clips:edit',
+            'channel:edit:commercial',
+            'channel:manage:broadcast',
+            'channel:manage:extensions',
+            'channel:manage:polls',
+            'channel:manage:predictions',
+            'channel:manage:redemptions',
+            'channel:manage:schedule',
+            'channel:manage:videos',
+            'channel:read:editors',
+            'channel:read:goals',
+            'channel:read:hype_train',
+            'channel:read:polls',
+            'channel:read:predictions',
+            'channel:read:redemptions',
+            'channel:read:stream_key',
+            'channel:read:subscriptions',
+            'chat:edit',
+            'chat:read',
+            'moderation:read',
+            'moderator:manage:automod',
+            'moderator:manage:automod_settings',
+            'moderator:manage:banned_users',
+            'moderator:manage:blocked_terms',
+            'moderator:manage:chat_settings',
+            'moderator:read:automod_settings',
+            'moderator:read:blocked_terms',
+            'moderator:read:chat_settings',
+            'user:edit',
+            'user:edit:broadcast',
+            'user:manage:blocked_users',
+            'user:read:blocked_users',
+            'user:read:broadcast',
+            'user:read:email',
+            'user:read:follows',
+            'user:read:subscriptions',
+            'whispers:edit',
+            'whispers:read',
     );
              
     /**
