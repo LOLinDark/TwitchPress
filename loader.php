@@ -1,3 +1,21 @@
+// Register the webhook event processing handler using the new namespaced class
+add_action('plugins_loaded', function() {
+    if (class_exists('TwitchPress\\Webhooks\\EventProcessing')) {
+        add_action('init', [new TwitchPress\\Webhooks\\EventProcessing(), 'processHandler']);
+    }
+});
+// Register the admin toolbars (admin menu) using the new namespaced class
+add_action('plugins_loaded', function() {
+    if (class_exists('TwitchPress\\Toolbars\\Toolbars')) {
+        new TwitchPress\\Toolbars\\Toolbars();
+    }
+});
+// Register the admin bot auth handler using the new namespaced class
+add_action('plugins_loaded', function() {
+    if (class_exists('TwitchPress\Core\BotOAuth')) {
+        add_action('admin_post_twitchpress_bot_auth', array(new TwitchPress\Core\BotOAuth(), 'listen'), 50);
+    }
+});
 // Add a secure Content-Security-Policy header for all plugin output
 add_action( 'send_headers', function() {
     if ( ! headers_sent() ) {

@@ -155,4 +155,22 @@ Issues and pull requests are welcome on [GitHub](https://github.com/LOLinDark/Tw
 
 ## License
 
+
+---
+
+## Premium Development & Contributor Access
+
+TwitchPress is developed with a transparent approach to both free and premium features. The core plugin is and will remain open source and free to use.
+
+**Premium extension development is ongoing.** This extension includes advanced features and integrations designed for power users and professional streamers.
+
+**Access Policy:**
+- All active contributors (code, documentation, support) and financial backers (e.g., Patreon supporters) will be given access to the premium extension at no extra cost.
+- This is to reward those who help the project grow and ensure the best features are available to the community.
+- Details on how to claim access will be published in the repository and on the [Patreon page](https://www.patreon.com/twitchpress).
+
+If you have contributed or are supporting the project, please reach out via GitHub Discussions, Discord, or Patreon to request your premium access.
+
+---
+
 GPL-3.0-or-later. See [LICENSE](LICENSE) for details.
