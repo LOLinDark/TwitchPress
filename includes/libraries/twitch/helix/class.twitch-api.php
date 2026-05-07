@@ -40,13 +40,16 @@ class TwitchPress_Twitch_API {
     * @var mixed
     */
     public $logging = array();
-    
-     * 
-     * @return array $token - The generated token and the array of all scopes returned with the token, keyed.
-     * 
+
+    /**
+     * Request a user access token from Twitch
+     *
+     * @param string $code
+     * @param string|null $requesting_function
+     * @return array $token The generated token and the array of all scopes returned with the token, keyed.
      * @version 5.3
      */
-    public function request_user_access_token( $code, $requesting_function = null ){
+    public function request_user_access_token($code, $requesting_function = null) {
         $endpoint = add_query_arg( array( 'client_id' => twitchpress_get_app_id() ), 'https://id.twitch.tv/oauth2/token' );
        
         $request_array = array(
