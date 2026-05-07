@@ -40,14 +40,17 @@ function twitchpress_display_frontend_notices_the_content( $post_content ) {
     elseif( !isset( $_GET['source'] ) || !is_string( $_GET['source'] ) ) { return $post_content; }
     elseif( !isset( $_GET['key'] ) || !is_numeric( $_GET['key'] ) ) { return $post_content; }
 
+    $notice_source = sanitize_key( $_GET['source'] );
+    $notice_key    = absint( $_GET['key'] );
+
     // Get our frontend notice from class.twitchpress-public-notices.php
-    $the_message = $GLOBALS['twitchpress']->public_notices->get_message_by_id( $_GET['source'], $_GET['key'] );
+    $the_message = $GLOBALS['twitchpress']->public_notices->get_message_by_id( $notice_source, $notice_key );
     
     // If title or info contain placeholders, get the short life transient holding the applicable values. 
     if( strstr( $the_message[ 'title'], '%s' ) || strstr( $the_message[ 'info'], '%s' ) ) 
     {
         // Get values stored in transient, required for inserting into messages.
-        $transient = get_transient( 'twitchpress_public_notice_values_' . $_GET['source'] . $_GET['key'] );
+        $transient = get_transient( 'twitchpress_public_notice_values_' . $notice_source . $notice_key );
         
         $the_message[ 'title'] = sprintf( $the_message[ 'title'], $transient['title_values'] );        
         $the_message[ 'info'] = sprintf( $the_message[ 'info'], $transient['info_values'] );        

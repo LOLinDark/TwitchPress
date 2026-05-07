@@ -181,15 +181,15 @@ class TwitchPress_Admin_Settings {
 
         // Add any posted messages
         if ( ! empty( $_GET['twitchpress_error'] ) ) {
-            self::add_error( stripslashes( $_GET['twitchpress_error'] ) );
+            self::add_error( sanitize_text_field( wp_unslash( $_GET['twitchpress_error'] ) ) );
         }
 
         if ( ! empty( $_GET['twitchpress_message'] ) ) {
-            self::add_message( stripslashes( $_GET['twitchpress_message'] ) );
+            self::add_message( sanitize_text_field( wp_unslash( $_GET['twitchpress_message'] ) ) );
         }
         
         if ( ! empty( $_GET['twitchpress_info'] ) ) {
-            self::add_info( stripslashes( $_GET['twitchpress_info'] ) );
+            self::add_info( sanitize_text_field( wp_unslash( $_GET['twitchpress_info'] ) ) );
         }
 
         // Get tabs for the settings page
