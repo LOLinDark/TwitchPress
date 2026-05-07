@@ -77,13 +77,13 @@ class TwitchPress_Admin_Users {
      */
     function filter_users_by_status( $query ) {
         global $wpdb, $pagenow;
-
+        // Only allow users with manage_options (admin) to filter by Twitch status
         if ( is_admin() && $pagenow == 'users.php' && ! empty( $_GET['twitchpress_status'] ) ) {
-
+            if ( ! current_user_can( 'manage_options' ) ) {
+                return $query;
+            }
             $status = sanitize_key( $_GET['twitchpress_status'] );
-
             $meta_key = 'twitchpress_sub_plan_' . twitchpress_get_main_channels_twitchid();
-            
             $query->query_where = str_replace('WHERE 1=1',
                 "WHERE 1=1 AND {$wpdb->users}.ID IN (
                 SELECT {$wpdb->usermeta}.user_id FROM $wpdb->usermeta
@@ -91,9 +91,7 @@ class TwitchPress_Admin_Users {
                 AND {$wpdb->usermeta}.meta_value = '{$status}')",
                 $query->query_where
             );
-
         }
-
         return $query;
     }
 
@@ -106,7 +104,10 @@ class TwitchPress_Admin_Users {
      * @version 1.0
      */
     function add_status_links( $views ) {
-
+        // Only allow users with manage_options (admin) to see Twitch status links
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return $views;
+        }
         $custom = array(
             'twitchsubs' => __( 'Twitch Subscribers', 'twitchpress' ),
             '1000'       => __( 'Twitch Sub Tier 1', 'twitchpress' ),
@@ -114,20 +115,17 @@ class TwitchPress_Admin_Users {
             '3000'       => __( 'Twitch Sub Tier 3', 'twitchpress' ),
             'Prime'      => __( 'Twitch Sub Prime', 'twitchpress' ),
         );
-
         foreach ( $custom as $k => $v ) {
             if ( isset( $_REQUEST['twitchpress_status'] ) && sanitize_key( $_REQUEST['twitchpress_status'] ) == $k ) {
                 $current = 'class="current"';
             } else {
                 $current = '';
             }
-
             $href = esc_url( admin_url( 'users.php' ) . '?twitchpress_status=' . $k );
             $views[ $k ] = '<a href="' . $href  . '" ' . $current . '>' . $v . ' <span class="count">(' . twitchpress_count_users_by_status( $k ) . ')</span></a>';
         }
-                    
         return $views;
-    }   
+    }
 }
 
 endif;
