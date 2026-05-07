@@ -41,434 +41,6 @@ class TwitchPress_Twitch_API {
     */
     public $logging = array();
     
-    // Debugging variables.
-    public $twitch_call_name = 'Unknown';
-
-    // Public notice assistance (built outside of this class)...
-    public $public_notice_title = null;
-    public $public_notice_actions = array();
-    
-    // Administrator notice creation (built within this class)...
-    public $admin_notice_title = null;      // Usually a string of text
-    public $admin_notice_body = null;       // Usually just a string of text
-    public $admin_notice_actions = array(); // Multiple actions may be offered 
-    public $admin_user_request = false;     // true triggers output for the current admin user
-    public $curl_version = array(); 
-    public $curl_object = null;
-    
-    /**
-    * Twitch API Scopes
-    * 
-    * @var mixed
-    */
-        public $twitch_scopes = array(
-            'analytics:read:extensions',
-            'analytics:read:games',
-            'bits:read',
-            'clips:edit',
-            'channel:edit:commercial',
-            'channel:manage:broadcast',
-            'channel:manage:extensions',
-            'channel:manage:polls',
-            'channel:manage:predictions',
-            'channel:manage:redemptions',
-            'channel:manage:schedule',
-            'channel:manage:videos',
-            'channel:read:editors',
-            'channel:read:goals',
-            'channel:read:hype_train',
-            'channel:read:polls',
-            'channel:read:predictions',
-            'channel:read:redemptions',
-            'channel:read:stream_key',
-            'channel:read:subscriptions',
-            'chat:edit',
-            'chat:read',
-            'moderation:read',
-            'moderator:manage:automod',
-            'moderator:manage:automod_settings',
-            'moderator:manage:banned_users',
-            'moderator:manage:blocked_terms',
-            'moderator:manage:chat_settings',
-            'moderator:read:automod_settings',
-            'moderator:read:blocked_terms',
-            'moderator:read:chat_settings',
-            'user:edit',
-            'user:edit:broadcast',
-            'user:manage:blocked_users',
-            'user:read:blocked_users',
-            'user:read:broadcast',
-            'user:read:email',
-            'user:read:follows',
-            'user:read:subscriptions',
-            'whispers:edit',
-            'whispers:read',
-    );
-             
-    /**
-    * Array of endorsed channels, only partnered or official channels will be 
-    * added here to reduce the risk of unwanted/nsfw sample content. 
-    * 
-    * @var mixed
-    * 
-    * @version 1.0
-    */
-    public $twitchchannels_endorsed = array(
-        'lolindark1'  => array( 'display_name' => 'LOLinDark1' ),
-        'nookyyy'     => array( 'display_name' => 'nookyyy' ),        
-        'starcitizen' => array( 'display_name' => 'StarCitizen' ),
-    );
-
-    public function __construct(){                
-        $curl_info = curl_version();
-        $this->curl_version = $curl_info['version'];         
-    } 
-    
-    /**
-    * Creates a Curl object ($this->curl_object) using my extending class
-    * TwitchPress_Curl() for WP_Http_Curl(). This does not execute the 
-    * call. See $this->call() examples on my own common but flexible approach...
-    *  
-    * This method also adds additional information that helps the plugin
-    * manage manage data and logging...
-    * 
-    * @version 3.0
-    * 
-    * @param string $file
-    * @param string $function
-    * @param string $line
-    * @param string $type
-    * @param string $endpoint
-    * @param boolean $paginate - Pass true to allow many calls in one procedure
-    */
-    public function curl( $file, $function, $line, $endpoint, $type = 'get', $api = 'helix', $paginate = false, $token_type = 'app' ) { 
-                          
-        // Create a Curl object... 
-        $this->curl_object = new TwitchPress_Curl();// Extends WP_Http_Curl()
-        $this->curl_object->originating_file = $file;
-        $this->curl_object->originating_function = $function;
-        $this->curl_object->originating_line = $line;
-        $this->curl_object->type = $type;
-        $this->curl_object->endpoint = $endpoint;
-        $this->curl_object->paginate = $paginate;
-        $this->curl_object->service = 'twitch';
-        $this->curl_object->api = $api;
-                
-        // Add none API related parameters to the object...
-        $this->curl_object->call_params(  
-            false, 
-            0, 
-            false, 
-            null, 
-            false, 
-            false, 
-            __FUNCTION__,
-            __LINE__ 
-        );
-
-        if( $token_type == 'visitor' ) {
-            $token = twitchpress_get_user_token( TWITCHPRESS_CURRENTUSERID );    
-        } elseif( $token_type == 'mainchannel' ) {
-            $token = twitchpress_get_main_channels_token();
-        } else {                  
-            $token = twitchpress_get_app_token();
-        }
-        
-        // Add common/default headers...
-        $this->curl_object->add_headers( array(
-            'Client-ID' => twitchpress_get_app_id(),
-            'Authorization' => 'Bearer ' . $token,
-        ) );
-    }   
-    
-    /**
-    * Uses TwitchPress_Curl::do_call() then finishes the final 
-    * logging within the API procedure.
-    * 
-    * After using $this->call() in your method use $this->curl_object->curl_reply_body()
-    * @version 1.0
-    */
-    function call() {             
-        $this->set_accept_header();
-                    
-        // Start + make the request to Twitch.tv API in one line... 
-        $this->curl_object->do_call( 'twitch' );
-
-        // $this->curl_object is populated with the do_call() results...
-        if( isset( $this->curl_object->response_code ) && $this->curl_object->response_code == '200' ) {
-            // This will tell us that we should expect our wanted data to exist in $call_object
-            // and we can use $this->call_result to assume that any database insert/update has happened also
-            $this->curl_object->call_result = true;
-        } else {    
-            $this->curl_object->call_result = false; 
-
-            if( !isset( $this->curl_object->response_code ) ) {
-                // __( 'Response code not returned! Call ID [%s]', 'twitchpress' ), $this->curl_object->get_call_id() ), array(), true, false );            
-            }
-       
-            if( $this->curl_object->response_code !== '200' ) {   
-                // __( 'Response code [%s] Call ID [%s]', 'twitchpress' ), $this->curl_object->response_code, $this->curl_object->get_call_id() ), array(), true, false );            
-            }
-        }
-    }  
-
-    /**
-    * Get Streams
-    * 
-    * Gets information about active streams. Streams are returned sorted by 
-    * number of current viewers, in descending order. Across multiple pages of 
-    * results, there may be duplicate or missing streams, 
-    * as viewers join and leave streams.
-    * 
-    * The response has a JSON payload with a data field containing an array of 
-    * stream information elements and a pagination field containing information 
-    * required to query for more streams.
-    * 
-    * @link https://dev.twitch.tv/docs/api/reference/#get-streams
-    * 
-    * @param mixed $after
-    * @param mixed $before
-    * @param mixed $community_id
-    * @param mixed $first
-    * @param mixed $game_id
-    * @param mixed $language
-    * @param array $user_id
-    * @param mixed $user_login
-    * 
-    * @version 2.3
-    */
-    public function get_streams( $after = null, $before = null, $community_id = null, $first = 100, $game_id = null, $language = null, $user_id = array(), $user_login = array() ) {
-        $endpoint = 'https://api.twitch.tv/helix/streams';
-
-        $endpoint = add_query_arg( 'after', $after, $endpoint );
-        $endpoint = add_query_arg( 'before', $before, $endpoint );
-        // community_id removed from Twitch API
-
-        // Encorce the limit of the API 
-        if( $first > 100 ) { $first = 100; }
-        $endpoint = add_query_arg( 'first', $first, $endpoint );
-
-        $endpoint = add_query_arg( 'game_id', $game_id, $endpoint );
-        $endpoint = add_query_arg( 'language', $language, $endpoint );
-        $endpoint = add_query_arg( 'user_login', $user_login, $endpoint );
-
-        // Handle a $user_id that may be a string or an array...
-        if( $user_id ) 
-        {
-            if( is_array( $user_id ) ) 
-            {    
-                $user_id_chunks = array_chunk( $user_id, $first );
-
-                // Temporarily going to use the first chunk only 
-                $endpoint = add_query_arg( 'user_id', implode( '&user_id=', $user_id_chunks[0] ), $endpoint );
-                
-                /*
-                foreach( $user_id_chunks as $chunk ) {
-                        TO BE COMPLETE 
-                }
-                */
-            }
-            elseif( is_numeric( $user_id ) )
-            {
-                $endpoint = add_query_arg( 'user_id', $user_id, $endpoint );   
-            }          
-        }
-
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' );    
-        $this->call();
-        return $this->curl_object->curl_reply_body;
-    }
-      
-    /**
-    * Checks if application credentials are set.
-    * 
-    * @returns boolean true if set else an array of all the missing credentials.
-    * 
-    * @version 1.0
-    */
-    public function is_app_set() {
-        
-        /*
-            Incomplete - added temporarily to solve login error...
-
-            The values being checked are not available in this class and
-            so we probably need to access the object registry directly to
-            perform this check-up
-        */
-        
-        return true;
-    }        
-              
-    public function set_accept_header() {
-        if( !isset( $this->curl_object->headers['Accept:'] ) ) {
-            $this->curl_object->add_headers( array(
-                //'Accept:' => 'Accept: application/vnd.twitchtv.v6+json',
-            ) );            
-        }
-    }
-    
-    /**
-    *       NEWER APPROACH  ------ STILL DOESNT WORK 
-    * 
-    * Alternative approach to requests...
-    * 
-    * Create a new HTTP Curl object with default Twitch app credentials.
-    * 
-    * You can easily use the contents of this function to create a custom
-    * function outside of this class.
-    * 
-    * @param mixed $type is GET,PUT,POST,DELETE
-    * @param mixed $endpoint
-    * @param mixed $headers
-    * @param mixed $body
-    * @param mixed $additional
-    * 
-    * @return TwitchPress_Extend_WP_Http_Curl
-    * 
-    * @version 2.0 - Renamed Twitch_Request from WP_HTTP_Curl() 
-    */
-    public function Twitch_Request( $type, $endpoint, $headers = array(), $body = array(), $additional = array() ) {
-        
-        /*  NEWER APPROACH  ------ STILL DOESNT WORK */
-        
-        // Create new curl object for performing an API call...
-        $new_curl = new TwitchPress_Extend_WP_Http_Curl();
-        $new_curl->start_new_request(
-            twitchpress_get_app_id(),
-            twitchpress_get_app_secret(),
-            twitchpress_get_app_token(),
-            $type,                                                                       
-            $endpoint
-        ); 
-        
-        // Add headers if the default does not add them in the current package...
-        $new_curl->option_headers_additional( $headers );
-        
-        // Add body parameters if the package hasn't been designed to add them automatically...
-        $new_curl->option_body_additional( $body ); 
-        
-        // Now add miscellanous values that will make up our curl request...
-        $new_curl->option_other_additional( $additional );    
-        $new_curl->final_prep();
-        $new_curl->do_call();
-        $new_curl->call_array['response']['body'] = $new_curl->call_array['response']['body'];
-        //$new_curl->call_array['response']['body'] = json_decode( $new_curl->call_array['response']['body'] );
-        //$new_curl->call_array['response']['body'] = http_build_query( $new_curl->call_array['response']['body'] );
-
-        return $new_curl->call_array['response'];          
-    }
-        
-    /**
-     * Generate an App Access Token as part of OAuth Client Credentials Flow. 
-     * 
-     * This token is meant for authorizing the application and making API calls that are not channel-auth specific. 
-     * 
-     * @param $code - [string] String of auth code used to grant authorization
-     * 
-     * @return object entire TwitchPress_Curl() object for handling any way required.
-     * 
-     * @version 3.0
-     */
-    public function request_app_access_token( $requesting_function = null ){
-        $this->curl_object = new TwitchPress_Curl();
-        $this->curl_object->originating_file = __FILE__;
-        $this->curl_object->originating_function = __FUNCTION__;
-        $this->curl_object->originating_line = __LINE__;
-        $this->curl_object->type = 'POST';
-        //$this->curl_object->endpoint = 'https://id.twitch.tv/oauth2/token?client_id=' . twitchpress_get_app_id();
-        $this->curl_object->endpoint = 'https://id.twitch.tv/oauth2/token';
-     
-        // Set none API related parameters i.e. cache and rate controls...
-        $this->curl_object->call_params( 
-            false, 
-            0, 
-            false, 
-            null, 
-            false, 
-            false, 
-            __FUNCTION__,
-            __LINE__ 
-        );
-        
-        // Use app credentials from my own registry for sensitive data...
-        $twitch_app = TwitchPress_Object_Registry::get( 'twitchapp' );
-        
-        $this->curl_object->endpoint = add_query_arg( array(
-            'client_id'        => $twitch_app->app_id,
-            'client_secret'    => $twitch_app->app_secret,
-            'redirect_uri'     => $twitch_app->app_redirect,
-            'grant_type'       => 'client_credentials'        
-        ), $this->curl_object->endpoint );
-
-        /*
-        $this->curl_object->set_curl_body( array(
-            'client_id'        => $twitch_app->app_id,
-            'client_secret'    => $twitch_app->app_secret,
-            'redirect_uri'     => $twitch_app->app_redirect,
-            'grant_type'       => 'client_credentials'
-        ) );
-        */
-        
-        /*
-        $this->curl_object->body = array(
-            'client_id'        => $twitch_app->app_id,
-            'client_secret'    => $twitch_app->app_secret,
-            'redirect_uri'     => $twitch_app->app_redirect,
-            'grant_type'       => 'client_credentials'
-        );
-        */
-        
-        /*
-        $this->curl_object->headers = array(
-            'client_id'        => $twitch_app->app_id,
-            'client_secret'    => $twitch_app->app_secret,
-            'redirect_uri'     => $twitch_app->app_redirect,
-            'grant_type'       => 'client_credentials'
-        );
-        */
-        
-        unset($twitch_app);
-
-        // Start + make the request in one line... 
-        $this->curl_object->do_call( 'twitch' );
-        
-        // This method returns $call_twitch->curl_response_body;
-        return $this->curl_object;
-    }
-    
-    /**
-    * Process the object created by class TwitchPress_Curl(). 
-    * 
-    * Function request_app_access_token() is called first, it returns $call_object
-    * so we can perform required validation and then we call this method.
-    * 
-    * @param mixed $call_object
-    * 
-    * @version 2.0
-    */
-    public function app_access_token_process_call_reply( $call_object ) {
-        $options = array();
-                              
-        if( !isset( $call_object->curl_reply_body->access_token ) ) {
-            return false;
-        }
-        
-        if( !isset( $call_object->curl_reply_body->expires_in ) ) {
-            return false;
-        }
-        
-        // Update option record and object registry...            
-        twitchpress_update_app_token( $call_object->curl_reply_body->access_token );
-        twitchpress_update_app_token_expiry( $call_object->curl_reply_body->expires_in ); 
-
-        return $call_object->curl_reply_body->access_token; 
-    }
-    
-    /**
-     * Generate a visitor/user access token. This also applies to the 
-     * administrator who sets the main and bot accounts...  
-     * 
-     * @param $code - [string] String of auth code used to grant authorization
      * 
      * @return array $token - The generated token and the array of all scopes returned with the token, keyed.
      * 
@@ -554,26 +126,10 @@ class TwitchPress_Twitch_API {
      * 
      * @deprecated this has not been a great approach, new approach coming October 2018
      */    
-    public function check_application_token(){                    
-        $url = 'https://id.twitch.tv/oauth2/validate';
-        $post = array( 
-            'oauth_token' => $this->twitch_client_token, 
-            'client_id'   => twitchpress_get_app_id(),          
-        );
-
-        $result = json_decode( $this->cURL_get( $url, $post, array(), false, __FUNCTION__ ), true );                   
-        
-        if ( isset( $result['token']['valid'] ) && $result['token']['valid'] )
-        {      
-            return $result;
-        } 
-        else 
-        {
-             return false;
-        }
-        
-        return false;     
-    }        
+    /**
+     * @deprecated This method is deprecated and does nothing. Application token validation is handled elsewhere.
+     */
+    public function check_application_token(){ return false; }
                    
     /**
      * Checks a user oAuth2 token for validity.
@@ -633,15 +189,9 @@ class TwitchPress_Twitch_API {
     * 
     * @deprecated a new approach that relies on the access token expiry
     */
-    public function establish_application_token( $function ) {     
-        $result = $this->check_application_token();  
-
-        // check_application_token() makes a call and if token invalid the following values will not be returned by the API
-        if ( !isset( $result['token']['valid'] ) || !$result['token']['valid'] ){
-            return $this->request_app_access_token( $function . ' + ' . __FUNCTION__ );
-        }
-                                  
-        return $result;
+    public function establish_application_token( $function ) {
+        // Deprecated: always request a new app access token
+        return $this->request_app_access_token( $function . ' + ' . __FUNCTION__ );
     }
     
     /**
@@ -983,7 +533,7 @@ class TwitchPress_Twitch_API {
 
         $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
         
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' ); 
+        $this->call();
            
         return $this->curl_object->curl_reply_body;
     }
@@ -1171,7 +721,8 @@ class TwitchPress_Twitch_API {
         
         $this->curl_object->scope = 'user:read:email';
         
-        return $this->call();          
+        $this->call();
+        return $this->curl_object->curl_reply_body;
     }
 
     /**
@@ -1227,7 +778,7 @@ class TwitchPress_Twitch_API {
 
         $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
 
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' ); 
+        $this->call();
                       
         return $this->curl_object->curl_reply_body;         
     }
@@ -1276,7 +827,7 @@ class TwitchPress_Twitch_API {
      
         $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
 
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' ); 
+        $this->call();
                              
         return $this->curl_object->curl_reply_body;
     }
@@ -1292,7 +843,7 @@ class TwitchPress_Twitch_API {
         $endpoint = 'https://api.twitch.tv/helix/teams';
         $endpoint = add_query_arg( array( 'name' => $team_name ), $endpoint );            
         $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'GET' ); 
-        $this->call( 'GET', $endpoint, __FILE__, __FUNCTION__, __LINE__, 'automatic' );               
+        $this->call();
         return $this->curl_object->curl_reply_body;
     }
     
@@ -1314,7 +865,7 @@ class TwitchPress_Twitch_API {
             'length'         => $length, 
         ), $endpoint );
 
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, 'POST', $endpoint );
+        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, 'POST' );
         
         $token = twitchpress_get_main_channels_token();
         
@@ -1338,7 +889,7 @@ class TwitchPress_Twitch_API {
         $method = 'POST';
         $type = 'channel.update';  
 
-        $this->curl( __FILE__, __FUNCTION__, __LINE__, $method, $endpoint ); 
+        $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, $method );
         
         $this->curl_object->add_headers( array(
             'Client-ID'     => twitchpress_get_app_id(),
@@ -1393,62 +944,28 @@ class TwitchPress_Twitch_API {
     }
     
     public function eventsub_channel_follow() {
-        $call_authentication = 'none';
+        // EventSub channel.follow v2 subscription
         $endpoint = 'https://api.twitch.tv/helix/eventsub/subscriptions';
         $method = 'POST';
-        $type = 'channel.follow';  
-        
-        /*
-                    Channel Follow Request Body
-                    Name    Type    Required?    Description
-                    type    string    yes    The subscription type name: channel.follow.
-                    version    string    yes    The subscription type version: 1.
-                    condition     condition     yes    Subscription-specific parameters.
-                    transport     transport     yes    Transport-specific parameters.
-                    Channel Follow Webhook Example
-                    {
-                        "type": "channel.follow",
-                        "version": "1",
-                        "condition": {
-                            "broadcaster_user_id": "1337"
-                        },
-                        "transport": {
-                            "method": "webhook",
-                            "callback": "https://example.com/webhooks/callback",
-                            "secret": "s3cRe7"
-                        }
-                    }
-                    Channel Follow Notification Payload
-                    Name    Type    Description
-                    subscription     subscription     Metadata about the subscription.
-                    event     event     The event information. Contains the user ID and user name of the follower and the broadcaster user ID and broadcaster user name.
-                    Channel Follow Webhook Notification Example
-                    {
-                        "subscription": {
-                            "id": "f1c2a387-161a-49f9-a165-0f21d7a4e1c4",
-                            "type": "channel.follow",
-                            "version": "1",
-                            "status": "enabled",
-                            "cost": 0,
-                            "condition": {
-                               "broadcaster_user_id": "1337"
-                            },
-                             "transport": {
-                                "method": "webhook",
-                                "callback": "https://example.com/webhooks/callback"
-                            },
-                            "created_at": "2019-11-16T10:11:12.123Z"
-                        },
-                        "event": {
-                            "user_id": "1234",
-                            "user_login": "cool_user",
-                            "user_name": "Cool_User",
-                            "broadcaster_user_id": "1337",
-                            "broadcaster_user_login": "cooler_user",
-                            "broadcaster_user_name": "Cooler_User",
-                            "followed_at": "2020-07-15T18:16:11.17106713Z"
-                        }
-                    }  */            
+        $body = array(
+            'type' => 'channel.follow',
+            'version' => '2',
+            'condition' => array(
+                // These should be provided as arguments in a real implementation
+                'broadcaster_user_id' => '', // required
+                'moderator_user_id' => ''    // required for v2
+            ),
+            'transport' => array(
+                'method' => 'webhook',
+                'callback' => '', // set callback URL
+                'secret' => ''    // set webhook secret
+            )
+        );
+        // $body should be filled with real values before calling
+        // $this->curl( __FILE__, __FUNCTION__, __LINE__, $endpoint, $method, 'helix', true, null, $body );
+        // $this->call();
+        // return $this->curl_object->curl_reply_body;
+        // NOTE: This is a stub. Fill in parameters and uncomment above to enable.
     }
     
     public function eventsub_channel_subscribe() {

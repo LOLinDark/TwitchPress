@@ -1,49 +1,58 @@
-<?php        
-/**
-* TwitchPress Core Functions
-*/
-   
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+// --- Rate limiting stub for Twitch API calls in shortcodes ---
+function twitchpress_rate_limit_check( $key, $limit = 5, $window = 60 ) {
+    $transient_key = 'twitchpress_rate_' . md5( $key );
+    $calls = get_transient( $transient_key );
+    if ( ! $calls ) {
+        set_transient( $transient_key, 1, $window );
+        return true;
+    }
+    if ( $calls < $limit ) {
+        set_transient( $transient_key, $calls + 1, $window );
+        return true;
+    }
+    return false;
 }
 
-require_once( TWITCHPRESS_PLUGIN_DIR_PATH . 'install.php' );
-include_once( plugin_basename( 'integration.php' ) );                 
-include_once( plugin_basename( 'includes/functions/functions.twitchpress-get.php' ) );                
-include_once( plugin_basename( 'includes/functions/functions.twitchpress-database.php' ) );                
-include_once( plugin_basename( 'systems/webhooks/functions.twitchpress-webhooks.php' ) );                
+// TwitchPress main loader - loads all function and class files
+if ( ! defined( 'ABSPATH' ) ) exit;
 
-function twitchpress_is_backend_login(){
-    $ABSPATH_MY = str_replace(array('\\','/'), DIRECTORY_SEPARATOR, ABSPATH);
-    return ((in_array($ABSPATH_MY.'wp-login.php', get_included_files()) || in_array($ABSPATH_MY.'wp-register.php', get_included_files()) ) || $GLOBALS['pagenow'] === 'wp-login.php' || $_SERVER['PHP_SELF']== '/wp-login.php');
+// Load all function/class files
+require_once __DIR__ . '/includes/classes/class.twitchpress-object-registry.php';
+require_once __DIR__ . '/includes/libraries/twitch/helix/class.twitch-api.php';
+require_once __DIR__ . '/includes/functions/functions.twitchpress-user.php';
+require_once __DIR__ . '/includes/functions/functions.twitchpress-channel.php';
+require_once __DIR__ . '/includes/functions/functions.twitchpress-api.php';
+require_once __DIR__ . '/includes/functions/functions.twitchpress-utils.php';
+// ...add more as you migrate
+
+// Ensure class availability for deprecation stubs
+if ( ! class_exists( 'TwitchPress_User_Manager' ) ) {
+    require_once __DIR__ . '/includes/functions/functions.twitchpress-user.php';
+}
+if ( ! class_exists( 'TwitchPress_Channel_Manager' ) ) {
+    require_once __DIR__ . '/includes/functions/functions.twitchpress-channel.php';
 }
 
-function twitchpress_get_follower_count( int $twitch_broadcaster_id ) {
-    $twitch_api = new TwitchPress_Twitch_API();
-    $followers = $twitch_api->get_channels_followers( $twitch_broadcaster_id, 1, null, null );
-    return $followers->total;
+// Deprecation stubs for moved functions (examples)
+if ( ! function_exists( 'twitchpress_is_user_authorized' ) ) {
+    function twitchpress_is_user_authorized( $wp_user_id ) {
+        _deprecated_function( __FUNCTION__, '3.0', 'TwitchPress_User_Manager::is_user_authorized' );
+        return TwitchPress_User_Manager::is_user_authorized( $wp_user_id );
+    }
 }
-
-/**
-* Used with WP core login form...
-* 
-* @param mixed $message
-* 
-* @version 1.0
-*/
-function twitchpress_login_error( $message ) {
-    $login_messages = new TwitchPress_Custom_Login_Messages();
-    $login_messages->add_error( $message );
-    unset( $login_messages );                 
+if ( ! function_exists( 'twitchpress_get_user_twitch_credentials' ) ) {
+    function twitchpress_get_user_twitch_credentials( $user_id ) {
+        _deprecated_function( __FUNCTION__, '3.0', 'TwitchPress_User_Manager::get_twitch_credentials' );
+        return TwitchPress_User_Manager::get_twitch_credentials( $user_id );
+    }
 }
-
-/**
- * Provides the string for populating parent value in Twitch.tv embeds
- *
- * @return void
- */
-function twitchpress_embed_parent_string() {
-    $urlparts = wp_parse_url(home_url());
+if ( ! function_exists( 'twitchpress_update_user_oauth' ) ) {
+    function twitchpress_update_user_oauth( $wp_user_id, $code, $token, $twitch_user_id, $expires_in, $scope_array, $refresh_token ) {
+        _deprecated_function( __FUNCTION__, '3.0', 'TwitchPress_User_Manager::update_oauth' );
+        return TwitchPress_User_Manager::update_oauth( $wp_user_id, $code, $token, $twitch_user_id, $expires_in, $scope_array, $refresh_token );
+    }
+}
+// ...add more stubs as you migrate
     return $urlparts['host'];    
 }
 
@@ -87,19 +96,21 @@ function twitchpress_filter_slug_get_avatar( $avatar, $id_or_email = null, $size
     }
         
     //Find URL of saved avatar in user meta...
-    $saved = get_user_meta( $id_or_email, 'twitchpress_avatar_url', true );  
-                                                     
-    //check if it is a URL
-    if( filter_var( $saved, FILTER_VALIDATE_URL ) ) {               
-        if( $buddypress ) {
-            if( $alt && is_string( $alt ) ) {
-                $alt = ' alt="' . $alt . '"';
+    $saved = get_user_meta( $id_or_email, 'twitchpress_avatar_url', true );
+    //check if it is a URL and only allow trusted domains
+    $allowed_domains = array('static-cdn.jtvnw.net', 'cdn.twitch.tv');
+    if( filter_var( $saved, FILTER_VALIDATE_URL ) ) {
+        $host = parse_url($saved, PHP_URL_HOST);
+        if ( in_array( $host, $allowed_domains, true ) ) {
+            if( $buddypress ) {
+                if( $alt && is_string( $alt ) ) {
+                    $alt = ' alt="' . $alt . '"';
+                }
+                $saved = str_replace( '300x300', '150x150', $saved );
+                return sprintf( '<img src="%s"%s%s%s />', esc_url( $saved ), esc_attr( $alt ), $size, $height );
             }
-            # HACK - The img is being output at 300 despite styles indicating otherwise so this hack is applied for now...
-            $saved = str_replace( '300x300', '150x150', $saved );
-            return sprintf( '<img src="%s"%s%s%s />', esc_url( $saved ), esc_attr( $alt ), $size, $height );     
+            return sprintf( '<img src="%s?s=%s" alt="%s" width="%s" height="%s" />', esc_url( $saved ), $size, esc_attr( $alt ), $size, $size );
         }
-        return sprintf( '<img src="%s?s=%s" alt="%s" width="%s" height="%s" />', esc_url( $saved ), $size, esc_attr( $alt ), $size, $size );
     }
 
     //return normal
@@ -119,7 +130,6 @@ add_filter( 'get_avatar', 'twitchpress_filter_slug_get_avatar', 10, 5 );
 * @version 2.0
 */
 function twitchpress_filter_slug_get_avatar_url( $avatar, $id_or_email = null, $size = null, $default = false, $alt = '' ) {
-    
     if( is_object( $id_or_email ) ) { 
         if( isset( $id_or_email->data->ID ) ) {
             $id_or_email = $id_or_email->data->ID;    
@@ -135,20 +145,16 @@ function twitchpress_filter_slug_get_avatar_url( $avatar, $id_or_email = null, $
             }
         }
     }
-                     
     // If still no user ID, return...
-    if( !is_numeric( $id_or_email ) || is_object( $id_or_email ) ){      
+    if( !is_numeric( $id_or_email ) || is_object( $id_or_email ) ){
         return $avatar;
     }
-        
     // Find URL of saved avatar in user meta...
-    $saved = get_user_meta( $id_or_email, 'twitchpress_avatar_url', true );  
-       
+    $saved = get_user_meta( $id_or_email, 'twitchpress_avatar_url', true );
     // Check if it is a URL...
-    if( filter_var( $saved, FILTER_VALIDATE_URL ) ) {           
-        return $avatar;
+    if( filter_var( $saved, FILTER_VALIDATE_URL ) ) {
+        return $saved;
     }
-
     // Return normal...
     return $avatar;
 }
@@ -638,14 +644,15 @@ function twitchpress_get_user_bot_code( $wp_user_id ) {
 * @version 1.0
 */
 function twitchpress_update_user_code( $wp_user_id, $code ) { 
-    update_user_meta( $wp_user_id, 'twitchpress_auth_time', time() );
+    $now = time();
+    update_user_meta( $wp_user_id, 'twitchpress_auth_time', $now );
     if( TWITCHPRESS_CURRENTUSERID == $wp_user_id ) {
-        return TwitchPress_Object_Registry::update_var( 'currentusertwitch', 'user_auth_time', $code );    
-    }    
+        TwitchPress_Object_Registry::update_var( 'currentusertwitch', 'user_auth_time', $now );
+    }
     update_user_meta( $wp_user_id, 'twitchpress_code', $code );
     if( TWITCHPRESS_CURRENTUSERID == $wp_user_id ) {
-        return TwitchPress_Object_Registry::update_var( 'currentusertwitch', 'user_code', $code );    
-    }        
+        TwitchPress_Object_Registry::update_var( 'currentusertwitch', 'user_code', $code );
+    }
 }
 
 function twitchpress_update_user_bot_code( $wp_user_id, $code ) { 
@@ -661,8 +668,11 @@ function twitchpress_update_user_bot_code( $wp_user_id, $code ) {
 * @version 2.0
 */
 function twitchpress_get_user_token( $wp_user_id ) {    
-    $obj = TwitchPress_Object_Registry::get( 'currentusertwitch' );
-    return isset( $obj->user_token ) ? $obj->user_token : null;
+    if ( $wp_user_id == get_current_user_id() ) {
+        $obj = TwitchPress_Object_Registry::get( 'currentusertwitch' );
+        return isset( $obj->user_token ) ? $obj->user_token : null;
+    }
+    return get_user_meta( $wp_user_id, 'twitchpress_user_token', true );
 }
 
 function twitchpress_get_user_bot_token( $wp_user_id ) {
@@ -1084,21 +1094,21 @@ function twitchpress_get_bot_channels_postid() {
 ######################################################################
 
 function twitchpress_update_bot_channels_code( $new_code ) {
-    $new_code = sanitize_key( $new_code );
-    update_option( 'twitchpress_bot_channels_code', sanitize_key( $new_code ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_code', $new_code );
+    $sanitized = sanitize_key( $new_code );
+    update_option( 'twitchpress_bot_channels_code', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_code', $sanitized );
 }
 
 function twitchpress_update_bot_channels_wpowner_id( $wp_user_id ) {
-    $new_code = sanitize_key( $wp_user_id );
-    update_option( 'twitchpress_bot_channels_wpowner_id', sanitize_key( $wp_user_id ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_wpowner_id', $wp_user_id );
+    $sanitized = sanitize_key( $wp_user_id );
+    update_option( 'twitchpress_bot_channels_wpowner_id', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_wpowner_id', $sanitized );
 }
 
 function twitchpress_update_bot_channels_token( $new_token ) { 
-    $new_code = sanitize_key( $new_token );
-    update_option( 'twitchpress_bot_channels_token', sanitize_key( $new_token ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_token', $new_token );
+    $sanitized = sanitize_key( $new_token );
+    update_option( 'twitchpress_bot_channels_token', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_token', $sanitized );
 }
 
 /**
@@ -1109,9 +1119,9 @@ function twitchpress_update_bot_channels_token( $new_token ) {
 * @version 2.0
 */
 function twitchpress_update_bot_channels_refresh_token( $new_refresh_token ) {
-    $new_code = sanitize_key( $new_refresh_token );
-    update_option( 'twitchpress_bot_channels_refresh_token', sanitize_key( $new_refresh_token ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_refresh_token', $new_refresh_token );
+    $sanitized = sanitize_key( $new_refresh_token );
+    update_option( 'twitchpress_bot_channels_refresh_token', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_refresh_token', $sanitized );
 }
 
 /**
@@ -1126,8 +1136,7 @@ function twitchpress_update_bot_channels_refresh_token( $new_refresh_token ) {
 * @version 2.0
 */
 function twitchpress_update_bot_channels_scopes( $new_bot_channels_scopes ) {
-    $new_code = $new_bot_channels_scopes;
-    update_option( 'twitchpress_bot_channels_scopes', $new_bot_channels_scopes, false ); 
+    update_option( 'twitchpress_bot_channels_scopes', $new_bot_channels_scopes, false );
     return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_scopes', $new_bot_channels_scopes );
 }
 
@@ -1139,9 +1148,9 @@ function twitchpress_update_bot_channels_scopes( $new_bot_channels_scopes ) {
 * @version 2.0
 */
 function twitchpress_update_bot_channels_name( $new_bot_channels_name ) {
-    $new_code = sanitize_key( $new_bot_channels_name );
-    update_option( 'twitchpress_bot_channels_name', sanitize_key( $new_bot_channels_name ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_name', $new_bot_channels_name );
+    $sanitized = sanitize_key( $new_bot_channels_name );
+    update_option( 'twitchpress_bot_channels_name', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_name', $sanitized );
 }
 
 /**
@@ -1152,9 +1161,9 @@ function twitchpress_update_bot_channels_name( $new_bot_channels_name ) {
 * @version 2.0
 */
 function twitchpress_update_bot_channels_id( $new_bot_channels_id ) {
-    $new_code = sanitize_key( $new_bot_channels_id );
-    update_option( 'twitchpress_bot_channels_id', sanitize_key( $new_bot_channels_id ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_id', $new_bot_channels_id );
+    $sanitized = sanitize_key( $new_bot_channels_id );
+    update_option( 'twitchpress_bot_channels_id', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_id', $sanitized );
 }
 
 /**
@@ -1165,9 +1174,9 @@ function twitchpress_update_bot_channels_id( $new_bot_channels_id ) {
 * @version 2.0
 */
 function twitchpress_update_bot_channels_postid( $new_bot_channels_postid ) {
-    $new_code = sanitize_key( $new_bot_channels_postid );
-    update_option( 'twitchpress_bot_channels_postid', sanitize_key( $new_bot_channels_postid ), false ); 
-    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_postid', $new_bot_channels_postid );
+    $sanitized = sanitize_key( $new_bot_channels_postid );
+    update_option( 'twitchpress_bot_channels_postid', $sanitized, false );
+    return TwitchPress_Object_Registry::update_var( 'botchannelauth', 'bot_channels_postid', $sanitized );
 }        
 
 ######################################################################
@@ -1310,7 +1319,12 @@ function twitchpress_generate_authorization_url( $permitted_scopes, $local_state
     if( !isset( $local_state['random14'] ) ) { $local_state['random14'] = twitchpress_random14();}
     
     // Primary request handler - value is checked on return from Twitch.tv
-    set_transient( 'twitchpress_oauth_' . $local_state['random14'], $local_state, 6000 );
+    $filtered_state = $local_state;
+    // Remove any sensitive keys before storing
+    foreach(['client_secret','app_secret','secret','password'] as $key) {
+        if(isset($filtered_state[$key])) unset($filtered_state[$key]);
+    }
+    set_transient( 'twitchpress_oauth_' . $local_state['random14'], $filtered_state, 6000 );
 
     // After installation $permitted_scopes can be empty, results in $scope being an array...
     $scope = '';
@@ -1385,7 +1399,13 @@ function twitchpress_print_js() {
          * @since 2.6.0
          * @param string $js JavaScript code.
          */
-        echo apply_filters( 'twitchpress_queued_js', $js );
+        // Only allow <script> and comments, no other HTML tags.
+        $allowed_tags = array(
+            'script' => array('type' => true),
+            '!--' => array()
+        );
+        $filtered_js = wp_kses( apply_filters( 'twitchpress_queued_js', $js ), $allowed_tags );
+        echo $filtered_js;
 
         unset( $twitchpress_queued_js );
     }
@@ -1439,21 +1459,21 @@ function twitchpress_get_permalink_structure() {
     if ( function_exists( 'switch_to_locale' ) && did_action( 'admin_init' ) ) {
         switch_to_locale( get_locale() );
     }
-                      
     $permalinks = wp_parse_args( (array) get_option( 'twitchpress_permalinks', array() ), array(
         'twitchpress_base'       => '',
+        'channel_base'           => '',
+        'perks_base'             => '',
+        'giveaways_base'         => '',
         'category_base'          => '',
         'tag_base'               => '',
         'attribute_base'         => '',
         'use_verbose_page_rules' => false,
     ) );
-
     // Ensure rewrite slugs are set.
-    $permalinks['channels_rewrite_slug']  = untrailingslashit( empty( $permalinks['channel_base'] )   ? _x( 'twitchchannels',            'slug', 'twitchpress' ) : $permalinks['twitchchannel_base'] );
-    $permalinks['perks_rewrite_slug']     = untrailingslashit( empty( $permalinks['perks_base'] )     ? _x( 'perks',                     'slug', 'twitchpress' ) : $permalinks['twitchperks_base'] );
-    $permalinks['giveaways_rewrite_slug'] = untrailingslashit( empty( $permalinks['giveaways_base'] ) ? _x( 'giveaways',                 'slug', 'twitchpress' ) : $permalinks['twitchgiveaways_base'] );
+    $permalinks['channels_rewrite_slug']  = untrailingslashit( empty( $permalinks['channel_base'] )   ? _x( 'twitchchannels', 'slug', 'twitchpress' ) : $permalinks['channel_base'] );
+    $permalinks['perks_rewrite_slug']     = untrailingslashit( empty( $permalinks['perks_base'] )     ? _x( 'perks', 'slug', 'twitchpress' ) : $permalinks['perks_base'] );
+    $permalinks['giveaways_rewrite_slug'] = untrailingslashit( empty( $permalinks['giveaways_base'] ) ? _x( 'giveaways', 'slug', 'twitchpress' ) : $permalinks['giveaways_base'] );
     $permalinks['attribute_rewrite_slug'] = untrailingslashit( empty( $permalinks['attribute_base'] ) ? '' : $permalinks['attribute_base'] );
-
     if ( function_exists( 'restore_current_locale' ) && did_action( 'admin_init' ) ) {
         restore_current_locale();
     }
@@ -1553,16 +1573,16 @@ function twitchpress_is_request( $type ) {
 * @version 1.0
 */
 function twitchpress_validate_code( $code ) {
-    if( strlen ( $code ) !== 30  ) {
+    // Accept codes between 20 and 50 chars, alphanumeric
+    $len = strlen( $code );
+    if( $len < 20 || $len > 50 ) {
         return false;
-    }           
-    
+    }
     if( !ctype_alnum( $code ) ) {
         return false;
     }
-    
     return true;
-}      
+}
 
 /**
 * Validates a token string as appearing suitable or not...
@@ -1571,17 +1591,17 @@ function twitchpress_validate_code( $code ) {
 * 
 * @version 1.0
 */
-function twitchpress_validate_token( $token ) {     
-    if( strlen ( $token ) !== 30  ) {         
-        return false;
-    }           
-    
-    if( !ctype_alnum( $token ) ) {         
+function twitchpress_validate_token( $token ) {
+    // Accept tokens between 20 and 100 chars, alphanumeric
+    $len = strlen( $token );
+    if( $len < 20 || $len > 100 ) {
         return false;
     }
-         
+    if( !ctype_alnum( $token ) ) {
+        return false;
+    }
     return true;
-}    
+}
 
 /**
 * Determines if the value returned by generateToken() is a token or not.
@@ -1594,21 +1614,17 @@ function twitchpress_validate_token( $token ) {
 * @version 1.0
 */
 function twitchpress_was_valid_token_returned( $returned_value ){
-                                             
-    if( !array( $returned_value ) ) {        
+    if( !is_array( $returned_value ) ) {
         return false;
     }
-    
     if( !isset( $returned_value['access_token'] ) ) {
         return false;
     }
-
     if( !twitchpress_validate_token( $returned_value['access_token'] ) ) {
         return false;
     }
-    
     return true;
-}                     
+}
 
 /**
 * A helix function for confirming valid access has been granted through a token...
@@ -1654,7 +1670,6 @@ function twitchpress_schedule_sync_channel_to_wp() {
 * @version 1.0
 */
 function twitchpress_get_channel_posts_by_meta( $post_meta_key, $post_meta_value, $limit = 100 ) {
-    // args to query for your key
     $args = array(
         'post_type' => 'channels',
         'meta_query' => array(
@@ -1663,17 +1678,14 @@ function twitchpress_get_channel_posts_by_meta( $post_meta_key, $post_meta_value
                 'value' => $post_meta_value
             )
         ),
-        'fields' => 'ids'
+        'fields' => 'ids',
+        'posts_per_page' => $limit
     );
-    
-    // perform the query
     $query = new WP_Query( $args );
-  
-    if ( !empty( $query->posts ) ) {     
-        return true;
+    if ( !empty( $query->posts ) ) {
+        return $query->posts;
     }
-
-    return false;    
+    return array();
 }
 
 /**
@@ -1685,7 +1697,7 @@ function twitchpress_get_channel_posts_by_meta( $post_meta_key, $post_meta_value
 */
 function twitchpress_does_post_name_exist( $post_name ) {
     global $wpdb;
-    $result = $wpdb->get_var( $wpdb->prepare( "SELECT post_name FROM {$wpdb->prefix}posts WHERE post_name = '%s'", $post_name ), 'ARRAY_A' );
+    $result = $wpdb->get_var( $wpdb->prepare( "SELECT post_name FROM {$wpdb->prefix}posts WHERE post_name = %s", $post_name ) );
     if( $result ) {
         return true;
     } else {
@@ -1808,13 +1820,12 @@ function twitchpress_redirect_tracking( $url, $line, $function, $file = '', $saf
     {
         $url = add_query_arg( array( 'redirected-line' => $line, 'redirected-function' => $function ), esc_url_raw( $url ) );
     }    
-    
+    $url = esc_url_raw( $url );
     if( $safe ) 
     {
         wp_safe_redirect( add_query_arg( array( 'twitchpressredirected' => $redirect_counter ), $url ) );
         exit;
     }  
-    
     // Add twitchpressredirected to show that the URL has had a redirect. 
     // If it ever becomes normal to redirect again, we can increase the integer.
     wp_redirect( add_query_arg( array( 'twitchpressredirected' => $redirect_counter ), $url ) );
@@ -1844,7 +1855,10 @@ function twitchpress_is_valid_sub_plan( $value ){
 * @version 2.0
 */
 function twitchpress_random14(){ 
-    return rand( 10000000, 99999999 ) . rand( 100000, 999999 );   
+    if ( function_exists( 'wp_generate_password' ) ) {
+        return wp_generate_password( 20, false, false );
+    }
+    return bin2hex( random_bytes( 10 ) );
 }
 
 /**
@@ -1915,9 +1929,11 @@ function twitchpress_var_dump( $var = null, $levels = 2, $additional = array() )
     
     $header .= '</ul>';
 
-    echo '<pre>'; var_dump( $header ); echo '</pre>';  # DO NOT REMOVE # 
-    echo '<h3>Dump...</h3>';
-    echo '<pre>'; var_dump( $var ); echo '</pre>';  # DO NOT REMOVE # 
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG || current_user_can( 'manage_options' ) ) {
+        echo '<pre>'; var_dump( $header ); echo '</pre>';  # DO NOT REMOVE # 
+        echo '<h3>Dump...</h3>';
+        echo '<pre>'; var_dump( $var ); echo '</pre>';  # DO NOT REMOVE # 
+    }
 }
 
 function wp_die_twitchpress( $html ) {
@@ -2063,17 +2079,19 @@ function twitchpress_scopecheckboxpublic_required_icon( $scope ){
 * @version 1.0
 */
 function twitchpress_css_listtable_apirequests() {
+    if( !current_user_can('manage_options') ) { return; }
     if( !isset( $_GET['page'] ) ) { return; }
     if( !isset( $_GET['tab'] ) ) { return; }
-    if( $_GET['page'] !== 'twitchpress_data' ) { return; }
-
+    $page = sanitize_text_field( $_GET['page'] );
+    $tab = sanitize_text_field( $_GET['tab'] );
+    if( $page !== 'twitchpress_data' ) { return; }
+    // Optionally add nonce check here if used in the UI
     echo '<style type="text/css">';
     echo '.wp-list-table .column-time { width: 10%; }';
     echo '.wp-list-table .column-function { width: 20%; }';
     echo '.wp-list-table .column-header { width: 30%; }';
     echo '.wp-list-table .column-url { width: 20%; }';
     echo '</style>';
-    
 }
 add_action('admin_head', 'twitchpress_css_listtable_apirequests');
 
@@ -2083,11 +2101,13 @@ add_action('admin_head', 'twitchpress_css_listtable_apirequests');
 * @version 1.0
 */
 function twitchpress_css_listtable_apiresponses() {
+    if( !current_user_can('manage_options') ) { return; }
     if( !isset( $_GET['page'] ) ) { return; }
     if( !isset( $_GET['tab'] ) ) { return; }
-    if( $_GET['page'] !== 'twitchpress_data' ) { return; }
-    if( $_GET['tab'] !== 'apiresponses_list_tables' ) { return; }
-    
+    $page = sanitize_text_field( $_GET['page'] );
+    $tab = sanitize_text_field( $_GET['tab'] );
+    if( $page !== 'twitchpress_data' ) { return; }
+    if( $tab !== 'apiresponses_list_tables' ) { return; }
     echo '<style type="text/css">';
     echo '.wp-list-table .column-time { width: 10%; }';
     echo '.wp-list-table .column-httpdstatus { width: 10%; }';
@@ -2095,7 +2115,6 @@ function twitchpress_css_listtable_apiresponses() {
     echo '.wp-list-table .column-error_no { width: 10%; }';
     echo '.wp-list-table .column-result { width: 50%; }';
     echo '</style>';
-    
 }
 add_action('admin_head', 'twitchpress_css_listtable_apiresponses');
 
@@ -2105,11 +2124,13 @@ add_action('admin_head', 'twitchpress_css_listtable_apiresponses');
 * @version 1.0
 */
 function twitchpress_css_listtable_apierrors() {
+    if( !current_user_can('manage_options') ) { return; }
     if( !isset( $_GET['page'] ) ) { return; }
     if( !isset( $_GET['tab'] ) ) { return; }
-    if( $_GET['page'] !== 'twitchpress_data' ) { return; }
-    if( $_GET['tab'] !== 'apierrors_list_tables' ) { return; }
-    
+    $page = sanitize_text_field( $_GET['page'] );
+    $tab = sanitize_text_field( $_GET['tab'] );
+    if( $page !== 'twitchpress_data' ) { return; }
+    if( $tab !== 'apierrors_list_tables' ) { return; }
     echo '<style type="text/css">';
     echo '.wp-list-table .column-time { width: 10%; }';
     echo '.wp-list-table .column-function { width: 20%; }';
@@ -2117,7 +2138,6 @@ function twitchpress_css_listtable_apierrors() {
     echo '.wp-list-table .column-error_no { width: 10%; }';
     echo '.wp-list-table .column-curl_url { width: 40%; }';
     echo '</style>';
-    
 }
 add_action('admin_head', 'twitchpress_css_listtable_apierrors');
 
@@ -2185,21 +2205,19 @@ function twitchpress_is_sync_due( $file, $function, $line, $delay ) {
     {
         $last_time = $sync_timing_array[$file][$function][$line]['time'];
         $soonest_time = $last_time + $delay;
-        if( $soonest_time > time() ) 
-        {
+        if( $soonest_time <= time() ) {
             $sync_timing_array[$file][$function][$line]['delay'] = $delay;
             $sync_timing_array[$file][$function][$line]['time'] = time();
             twitchpress_update_sync_timing( $sync_timing_array );
-            return true;    
-        }   
-        
-        // Not enough time has passed since the last event. 
+            return true;
+        }
+        // Not enough time has passed since the last event.
         return false;
     }
 }
 
 function twitchpress_flood_protector(  $file, $function, $line, $delay ) {
-    twitchpress_is_sync_due( $file, $function, $line, $delay );    
+    return twitchpress_is_sync_due( $file, $function, $line, $delay );
 }
 
 /**
@@ -2321,7 +2339,13 @@ function twitchpress_get_current_user_sync_transient() {
 * @version 2.0
 */
 function twitchpress_encode_transient_name( $endpoint, $originating_function, $origination_line ) {
-    return base64_encode( serialize( array( $endpoint, $originating_function, $origination_line ) ) );   
+    $raw = base64_encode( serialize( array( $endpoint, $originating_function, $origination_line ) ) );
+    // WordPress transient key limit is 172 chars
+    if ( strlen( $raw ) > 172 ) {
+        // Use a hash to ensure uniqueness and fit the limit
+        return 'tp_' . substr( sha1( $raw ), 0, 40 );
+    }
+    return $raw;
 }
 
 function twitchpress_get_call_count() {
@@ -2528,12 +2552,12 @@ function twitchpress_get_user_sub_data( $wp_user_id ) {
 * @version 1.0
 */
 function twitchpress_subscription_data_ready( $subscription_array ) {
-    if( isset( $sub['checked'] ) 
-        && isset( $sub['is_gift'] ) 
-            && isset( $sub['tier'] ) 
-                && isset( $sub['plan_name'] ) ) { 
-        return true;       
-    } 
+    if( isset( $subscription_array['checked'] ) 
+        && isset( $subscription_array['is_gift'] ) 
+        && isset( $subscription_array['tier'] ) 
+        && isset( $subscription_array['plan_name'] ) ) {
+        return true;
+    }
     return false;
 }
 
@@ -2709,74 +2733,70 @@ function twitchpress_user_sub_sync_single( $wp_user_id, $output_notice = false )
  */
 function twitchpress_count_users_by_status( $status ) {
     $args = array( 'fields' => 'ID', 'number' => 0 );
-    $twitch_channel_id = twitchpress_get_main_channels_twitchid();   
-    
-    if( $status == 'twitchsubs' ) 
-    {
-        $args['meta_query'][] = array(array('key' => 'twitchpress_sub_plan_' . $twitch_channel_id));
-        $users = new \WP_User_Query( $args );        
+    $twitch_channel_id = twitchpress_get_main_channels_twitchid();
+    if( $status == 'twitchsubs' ) {
+        $args['meta_query'][] = array('key' => 'twitchpress_sub_plan_' . $twitch_channel_id);
+    } else {
+        $args['meta_query'][] = array('key' => 'twitchpress_sub_plan_' . $twitch_channel_id, 'value' => $status, 'compare' => '=');
     }
-    else
-    {
-        $twitch_channel_id = twitchpress_get_main_channels_twitchid();
-        $args['meta_query'][] = array(array('key' => 'twitchpress_sub_plan_' . $twitch_channel_id,'value' => $status,'compare' => '='));        
-    }
-
     $users = new \WP_User_Query( $args );
     return count( $users->results );
 }
 
-function twitchpress_memory_report() {
-    $b = debug_backtrace();
-    var_dump( '<br><br>FILE 1: ', $b[0]['file'], '<br>' );  # DO NOT REMOVE #
-    var_dump( 'FUNCTION: ', $b[0]['function'], $b[0]['line'], '<br>' );  # DO NOT REMOVE #
-    var_dump( '<br><br>FILE 2: ', $b[1]['file'], '<br>' );  # DO NOT REMOVE #
-    var_dump( 'FUNCTION: ', $b[1]['function'], $b[1]['line'], '<br>' );  # DO NOT REMOVE #  
-    var_dump( '<br><br>FILE 3: ', $b[2]['file'], '<br>' );  # DO NOT REMOVE #
-    var_dump( 'FUNCTION: ', $b[2]['function'], $b[2]['line'], '<br>' );   # DO NOT REMOVE # 
-    var_dump( '<br><br>FILE 4: ', $b[3]['file'], '<br>' );  # DO NOT REMOVE #
-    var_dump( 'FUNCTION: ', $b[3]['function'], $b[3]['line'], '<br>' );  # DO NOT REMOVE #
-    var_dump( 'USAGE: ', memory_get_usage(), '<br>' ); # DO NOT REMOVE #
-    var_dump( 'PEAK: ', memory_get_peak_usage(), '<br>' );  # DO NOT REMOVE #     
-}
-
-function twitchpress_send_to_console( $debug_output ) {
-
-    $cleaned_string = '';
-    if (!is_string($debug_output))
-        $debug_output = print_r($debug_output,true);
-
-      $str_len = strlen($debug_output);
-      for($i = 0; $i < $str_len; $i++) {
-            $cleaned_string .= '\\x' . sprintf('%02x', ord(substr($debug_output, $i, 1)));
-      }
-    $javascript_ouput = "<script>console.log('Debug Info: " .$cleaned_string. "');</script>";
-    echo $javascript_ouput;
-}
-
-
-function twitchpress_get_main_channels_team_id() {
-    return get_option( 'twitchpress_main_channel_team_id' ); 
-}
-
-function twitchpress_update_main_channels_team_id( $twitch_team_id ) {
-    return update_option( 'twitchpress_main_channel_team_id', $twitch_team_id ); 
-}
-
-/**
-* Check if giving channel is streaming...
-* 
-* @param mixed $channel_id
-* @returns boolean
-* 
-* @version 1.0
-*/
-function twitchpress_is_streaming( $channel_id ) {
-    $twitch_api = new TwitchPress_Twitch_API();
-    $result = $twitch_api->get_stream_by_userid( $channel_id );     
-    if( !$result || $result->type !== 'live' ) {
-        return false;    
-    } else {                                  
-        return true;  
+function twitchpress_save_subscribers_post( $sub ) {
+    // Use Helix fields: user_id, user_login, description
+    $user_id = isset($sub['user']['id']) ? $sub['user']['id'] : (isset($sub['user']['user_id']) ? $sub['user']['user_id'] : null);
+    $user_login = isset($sub['user']['login']) ? $sub['user']['login'] : (isset($sub['user']['user_login']) ? $sub['user']['user_login'] : null);
+    $description = isset($sub['user']['description']) ? $sub['user']['description'] : '';
+    $display_name = isset($sub['user']['display_name']) ? $sub['user']['display_name'] : $user_login;
+    // Check for existing twitchchannels post.
+    $args = array(
+        'post_type'  => 'channels',
+        'meta_query' => array(
+            array(
+                'key'   => 'twitch_user_id',
+                'value' => $user_id,
+            )
+        )
+    );
+    $postslist = get_posts( $args );
+    if( !empty( $postslist ) && is_array( $postslist ) ) {
+        if( isset( $postslist[0]->ID ) ) {
+            update_post_meta( $postslist[0]->ID, 'twitch_sub_id',            $sub['_id'] );
+            update_post_meta( $postslist[0]->ID, 'twitch_sub_created_at',    $sub['created_at'] );
+            update_post_meta( $postslist[0]->ID, 'twitch_sub_plan',          $sub['sub_plan'] );
+            update_post_meta( $postslist[0]->ID, 'twitch_sub_plan_name',     $sub['sub_plan_name'] );
+            update_post_meta( $postslist[0]->ID, 'twitch_user_created_at',   isset($sub['user']['created_at']) ? $sub['user']['created_at'] : '' );
+            update_post_meta( $postslist[0]->ID, 'twitch_user_display_name', $display_name );
+            update_post_meta( $postslist[0]->ID, 'twitch_user_login',        $user_login );
+            update_post_meta( $postslist[0]->ID, 'twitch_user_id',           $user_id );
+            update_post_meta( $postslist[0]->ID, 'twitch_user_description',  $description );
+            update_post_meta( $postslist[0]->ID, 'twitch_user_updated_at',   isset($sub['user']['updated_at']) ? $sub['user']['updated_at'] : '' );
+        }
+        return false;
     }
+    // Insert a new channel based on the users data
+    $postarr = array(
+        'post_author'  => 1,
+        'post_content' => $description,
+        'post_title' => $display_name,
+        'post_excerpt' => $description,
+        'post_status' => 'publish',
+        'post_type' => 'channels',
+    );
+    $post_id = wp_insert_post( $postarr, true );
+    if( is_wp_error( $post_id ) ) {
+        return false;
+    }
+    add_post_meta( $post_id, 'twitch_user_id',           $user_id );
+    add_post_meta( $post_id, 'twitch_user_login',         $user_login );
+    add_post_meta( $post_id, 'twitch_user_display_name',  $display_name );
+    add_post_meta( $post_id, 'twitch_user_description',   $description );
+    add_post_meta( $post_id, 'twitch_sub_id',             $sub['_id'] );
+    add_post_meta( $post_id, 'twitch_sub_created_at',     $sub['created_at'] );
+    add_post_meta( $post_id, 'twitch_sub_plan',           $sub['sub_plan'] );
+    add_post_meta( $post_id, 'twitch_sub_plan_name',      $sub['sub_plan_name'] );
+    add_post_meta( $post_id, 'twitch_user_created_at',    isset($sub['user']['created_at']) ? $sub['user']['created_at'] : '' );
+    add_post_meta( $post_id, 'twitch_user_updated_at',    isset($sub['user']['updated_at']) ? $sub['user']['updated_at'] : '' );
+    return true;
 }

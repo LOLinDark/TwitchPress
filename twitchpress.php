@@ -1,20 +1,21 @@
 <?php
 /**
  * Plugin Name: TwitchPress
- * Plugin URI: https://twitchpress.wordpress.com/
- * Github URI: https://github.com/RyanBayne/TwitchPress
- * Description: Add the power of Twitch.tv to WordPress 
- * Version: 3.18.0
+ * Plugin URI: https://github.com/LOLinDark/TwitchPress
+ * Description: Unofficial Twitch.tv integration for WordPress. Embed streams, gate content, and authenticate users via Twitch.
+ * Version: 3.19.0
  * Author: Ryan Bayne
- * Author URI: https://ryanbayne.wordpress.com/
- * Requires at least: 5.4
- * Tested up to: 6.6.1
- * License: GPL3
- * License URI: http://www.gnu.org/licenses/gpl-3.0.txt
+ * Author URI: https://github.com/LOLinDark
+ * Requires at least: 6.0
+ * Tested up to: 6.7
+ * Requires PHP: 7.4
+ * License: GPL-3.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * Text Domain: twitchpress
  * Domain Path: /i18n/languages/
  */
  
-const TWITCHPRESS_VERSION = '3.18.0';
+const TWITCHPRESS_VERSION = '3.19.0';
 
 // Exit if accessed directly. 
 if ( ! defined( 'ABSPATH' ) ) { exit; }

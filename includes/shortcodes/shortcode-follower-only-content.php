@@ -38,10 +38,24 @@ function twitchpress_shortcode_follower_only_content( $atts, $content = null  ) 
     }
     
     // Visitor must be following the main channel...
-    if( !twitchpress_is_user_following( get_current_user_id() ) ) {
+    $is_following = twitchpress_is_user_following( get_current_user_id() );
+    if( !$is_following ) {
+        // Try live check if meta is missing
+        $twitch_api = class_exists('TwitchPress_Twitch_API') ? new TwitchPress_Twitch_API() : null;
+        $user_id = get_current_user_id();
+        $channel_id = $atts['channel_id'] ? $atts['channel_id'] : twitchpress_get_main_channels_twitchid();
+        if( $twitch_api && $user_id && $channel_id ) {
+            $follows = $twitch_api->get_channels_followers( (int)$channel_id, null, null, twitchpress_get_user_twitchid_by_wpid($user_id) );
+            if( isset($follows->total) && $follows->total > 0 ) {
+                update_user_meta( $user_id, 'twitchpress_following_' . $channel_id, 1 );
+                $is_following = true;
+            }
+        }
+    }
+    if( !$is_following ) {
         $html_output .= '<p>' . __( 'Unlock hidden content on this page by following my Twitch channel...', 'twitchpress' ) . '</p>';
-        return $html_output;    
-    }   
+        return $html_output;
+    }
     
     // Final - prepare $content for output...
     $html_output = $content;

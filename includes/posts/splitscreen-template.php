@@ -47,7 +47,7 @@
         'width'           => '100%'  // 80%|100%|Minimum: 340|Default: 940               
     );
     
-    $parameters['channel'] = str_replace( '”', '', $parameters['channel'] );
+    $parameters['channel'] = str_replace( 'ï¿½', '', $parameters['channel'] );
     
     $parameters = json_encode( $parameters );
               
@@ -55,11 +55,19 @@
     <!-- Add a placeholder for the Twitch embed -->
     <div id="twitchpress-embed-everything1"></div>
     
-    <!-- Load the Twitch embed script -->
-    <script src="https://embed.twitch.tv/embed/v1.js"></script>
-                    
-    <script type="text/javascript">
-      new Twitch.Embed("twitchpress-embed-everything1", ' . $parameters . ');
+    if ( ! wp_script_is( 'twitch-embed-js', 'enqueued' ) ) {
+        wp_enqueue_script( 'twitch-embed-js', 'https://embed.twitch.tv/embed/v1.js', array(), null, true );
+    }
+    echo '<script type="text/javascript">
+      if (typeof Twitch !== "undefined" && Twitch.Embed) {
+        new Twitch.Embed("twitchpress-embed-everything1", ' . $parameters . ');
+      } else {
+        document.addEventListener("DOMContentLoaded", function() {
+          if (typeof Twitch !== "undefined" && Twitch.Embed) {
+            new Twitch.Embed("twitchpress-embed-everything1", ' . $parameters . ');
+          }
+        });
+      }
     </script>';
     ?></p>
   </div>
@@ -75,7 +83,7 @@
         'width'           => '100%'  // 80%|100%|Minimum: 340|Default: 940               
     );
     
-    $parameters['channel'] = str_replace( '”', '', $parameters['channel'] );
+    $parameters['channel'] = str_replace( 'ï¿½', '', $parameters['channel'] );
     
     $parameters = json_encode( $parameters );
               
@@ -83,11 +91,19 @@
     <!-- Add a placeholder for the Twitch embed -->
     <div id="twitchpress-embed-everything2"></div>
     
-    <!-- Load the Twitch embed script -->
-    <script src="https://embed.twitch.tv/embed/v1.js"></script>
-                    
-    <script type="text/javascript">
-      new Twitch.Embed("twitchpress-embed-everything2", ' . $parameters . ');
+    if ( ! wp_script_is( 'twitch-embed-js', 'enqueued' ) ) {
+        wp_enqueue_script( 'twitch-embed-js', 'https://embed.twitch.tv/embed/v1.js', array(), null, true );
+    }
+    echo '<script type="text/javascript">
+      if (typeof Twitch !== "undefined" && Twitch.Embed) {
+        new Twitch.Embed("twitchpress-embed-everything2", ' . $parameters . ');
+      } else {
+        document.addEventListener("DOMContentLoaded", function() {
+          if (typeof Twitch !== "undefined" && Twitch.Embed) {
+            new Twitch.Embed("twitchpress-embed-everything2", ' . $parameters . ');
+          }
+        });
+      }
     </script>';
     ?></p>
   </div>
